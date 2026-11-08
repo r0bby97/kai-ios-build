@@ -85,6 +85,8 @@ import FadenCore
 }
 let application = NSApplication.shared
 application.setActivationPolicy(.regular)
-let probe = Probe()
-Task { @MainActor in await probe.run() }
-withExtendedLifetime(probe) { application.run() }
+Task { @MainActor in
+    let probe = Probe()
+    await probe.run()
+}
+application.run()
