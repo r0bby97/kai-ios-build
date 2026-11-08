@@ -1,0 +1,81 @@
+name: Faden
+options:
+  bundleIdPrefix: dev.r0bby97
+  deploymentTarget:
+    iOS: '18.0'
+  createIntermediateGroups: true
+packages:
+  FadenCore:
+    path: .
+  MLXLanguageModels:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    exactVersion: 3.32.3
+  HuggingFace:
+    url: https://github.com/huggingface/swift-huggingface
+    exactVersion: 1.0.0
+  Transformers:
+    url: https://github.com/huggingface/swift-transformers
+    exactVersion: 1.4.0
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    IPHONEOS_DEPLOYMENT_TARGET: '18.0'
+    MARKETING_VERSION: '1.6.0'
+    CURRENT_PROJECT_VERSION: '1'
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  Faden:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    dependencies:
+      - package: FadenCore
+      - package: MLXLanguageModels
+        product: MLXLLM
+      - package: MLXLanguageModels
+        product: MLXLMCommon
+      - package: MLXLanguageModels
+        product: MLXHuggingFace
+      - package: HuggingFace
+        product: HuggingFace
+      - package: Transformers
+        product: Tokenizers
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.r0bby97.faden
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SUPPORTS_MACCATALYST: NO
+    scheme:
+      testTargets: [FadenServiceTests, FadenUITests]
+      gatherCoverageData: false
+  FadenUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: AppUITests
+    dependencies:
+      - target: Faden
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.r0bby97.faden.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Faden
+
+  FadenServiceTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: AppServiceTests
+    dependencies:
+      - target: Faden
+      - package: FadenCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.r0bby97.faden.servicetests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Faden.app/Faden"
+        BUNDLE_LOADER: "$(TEST_HOST)"

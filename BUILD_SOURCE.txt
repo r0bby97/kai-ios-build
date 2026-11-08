@@ -1,0 +1,2 @@
+Initial source snapshot: 03094c40dc2b3fd6ed18d3bd6df2489b89ce32d7
+Public snapshot excludes development Git history and local data.
