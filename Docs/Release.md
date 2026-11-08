@@ -1,4 +1,6 @@
-Kai 1.6.0
+Kai 1.6.0 – Prüfbuild
+
+Noch keine vollständige Abnahme: Der Live-Import von JannyAI ist durch Website-Prüfungen vom Arbeitsrechner aus blockiert. Echte KI-Konten und lokale MLX-Generierung auf dem iPhone sind nach den Korrekturen noch zu bestätigen. Der vollständige Anforderungsabgleich steht in Docs/Requirements.md.
 
 - Generierung wird anhand des tatsächlich gespeicherten Nachrichtentexts und eines separaten Backend-Ergebnisses geprüft. Die gemeinsame pauschale Fehlermeldung wurde entfernt. Ein Callback-Verlust kann aus derselben empfangenen Antwort wiederhergestellt werden, ohne eine zweite Anfrage zu senden.
 - ChatGPT und OpenRouter lesen auch reine finale Antwort-Snapshots und gültige JSON-Antworten aus derselben Anfrage. Interne Berechnungen bleiben von sichtbarem Antworttext getrennt.
@@ -7,6 +9,7 @@ Kai 1.6.0
 - Nach einer leeren oder vorübergehend fehlgeschlagenen Free-Router-Antwort werden bis zu drei aktuell als kostenlos ausgewiesene Textmodelle automatisch probiert. Kontoweite Nutzungslimits werden respektiert.
 - Apple übersetzt Kartentexte auf dem iPhone. Ab iOS 26 werden installierte Sprachen direkt angesprochen; ab iOS 26.4 nutzt Kai ausdrücklich den schnellen Übersetzungsmodus. Fehlende Pakete werden sofort mit „Deutsch einrichten“ gemeldet. Der einmalige Download erfolgt sichtbar in einer eigenen Einrichtung; es gibt keine Google- oder KI-Anfrage für die Übersetzung.
 - Neue öffentliche Kartengespräche werden erst nach erfolgreicher Übersetzung angelegt. Die originale Begrüßung und alternative Einstiege werden aus der übersetzten Karte übernommen.
+- JannyAI erhält Kurzbeschreibung, Katalog-Tags, Originalbild und Quellverweis auch nach dem PNG-Import. Signierte Download-URLs und reguläre CDN-Weiterleitungen werden unterstützt. Neue Transport-/Browser-Tests prüfen eine vollständige PNG-Karte mit Definition und Originalbild.
 - JannyAI unterscheidet HTTP 403/Website-Prüfung von einer nicht lieferbaren Karte. Der eingebaute Browser versucht den regulären öffentlichen PNG-/JSON-Export automatisch zu öffnen und übernimmt fertige Downloads. Eine von der Website verlangte Verifikation bleibt sichtbar; sie wird nicht umgangen. Ein vollständig automatischer JannyAI-Download ist bei solchen Prüfungen nicht zugesichert.
 - BDSM und Guideverse sind als eigene Suchgenres in Bibliothek, Chub und JannyAI vorhanden. Separate Esper-/Guide-Reiter werden nicht angelegt.
 

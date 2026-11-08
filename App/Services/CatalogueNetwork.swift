@@ -18,7 +18,7 @@ enum CatalogueNetwork {
         configuration.httpCookieStorage = nil
         return URLSession(configuration: configuration)
     }()
-    static func prepare(_ original: CharacterCard, directory: URL) async throws -> CharacterCard {
+    static func prepare(_ original: CharacterCard, directory: URL, downloadSession: URLSession = publicDownloadSession) async throws -> CharacterCard {
         var card = original.hasDefinition ? original : try await Catalogue.detail(original)
         card.avatarURL = card.avatarURL ?? original.avatarURL
         card.cachedAvatarURL = original.cachedAvatarURL
@@ -27,7 +27,7 @@ enum CatalogueNetwork {
            FileManager.default.fileExists(atPath: file.path) { return card }
         guard let text = card.avatarURL, let url = URL(string: text), url.scheme == "https" else { return card }
         do {
-            let (data, response) = try await publicDownloadSession.data(from: url)
+            let (data, response) = try await downloadSession.data(from: url)
             try Task.checkCancellation()
             guard (response as? HTTPURLResponse)?.statusCode == 200, data.count <= 8 * 1024 * 1024,
                   let image = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(image) > 0 else { return card }

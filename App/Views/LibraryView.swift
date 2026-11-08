@@ -438,7 +438,7 @@ struct CharacterDetail: View {
             do { card = try await Catalogue.detail(card) }
             catch {
                 failure = error.localizedDescription; loading = false
-                if case CatalogueDownloadFailure.verification = error, !automaticBrowserAttempted {
+                if CatalogueSource.source(for: card.id) == .janny, !(error is CancellationError), !automaticBrowserAttempted {
                     automaticBrowserAttempted = true; sourceBrowser = true
                 }
                 return

@@ -50,7 +50,7 @@ jobs:
           task_version=$(python3 -c 'import plistlib; print(plistlib.load(open("build/Build/Products/Release-iphoneos/Faden.app/Info.plist","rb"))["CFBundleShortVersionString"])')
           task_build_number=$((1000 + GITHUB_RUN_NUMBER))
           cp build/Kai.ipa "build/Kai-$task_version-b$task_build_number.ipa"
-          gh release create "build-$task_build_number" build/Kai.ipa "build/Kai-$task_version-b$task_build_number.ipa" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Kai $task_version · Build $task_build_number" --notes-file Docs/Release.md --prerelease
+          gh release create "build-$task_build_number" build/Kai.ipa "build/Kai-$task_version-b$task_build_number.ipa" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Kai $task_version · Prüfbuild $task_build_number" --notes-file Docs/Release.md --prerelease
       - name: Report simulator test results
         if: always()
         run: |

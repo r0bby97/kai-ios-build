@@ -27,7 +27,7 @@ struct CatalogueBrowser: View {
     }
 }
 
-private struct CatalogueWebView: UIViewRepresentable {
+struct CatalogueWebView: UIViewRepresentable {
     let url: URL
     let automaticCardID: String?
     let onDownload: (URL, URL?) -> Void
@@ -59,7 +59,11 @@ private struct CatalogueWebView: UIViewRepresentable {
                 let script = """
                 (() => {
                   const controls = [...document.querySelectorAll('button,a,[role="menuitem"]')];
-                  const candidate = controls.find(e => !e.dataset.kaiClicked && /^(download\\s*(card|png|json)?|export\\s*(card|png|json)?|png|json)$/i.test((e.innerText || '').trim()));
+                  const candidate = controls.find(e => {
+                    if (e.dataset.kaiClicked || e.disabled || !e.getClientRects().length || getComputedStyle(e).visibility === 'hidden') return false;
+                    const label = (e.innerText || e.getAttribute('aria-label') || '').replace(/[()]/g, ' ').trim().replace(/\\s+/g, ' ');
+                    return /^(?:(?:download|export|herunterladen)(?: (?:as|als|character|card|karte|png|json|sillytavern|format|file))*|png|json)$/i.test(label);
+                  });
                   if (candidate) { candidate.dataset.kaiClicked = '1'; candidate.click(); return true; }
                   return false;
                 })()
