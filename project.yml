@@ -44,6 +44,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.r0bby97.faden
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) $(KAI_TEST_FLAGS)"
         TARGETED_DEVICE_FAMILY: '1,2'
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: App/Info.plist
