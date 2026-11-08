@@ -1,0 +1,22 @@
+name: Validate live Janny import
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-export:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native WebKit integration probe
+        run: swift build -c release --package-path Integration/JannyLive
+      - name: Download a real public card through the regular website
+        run: Integration/JannyLive/.build/release/JannyLiveProbe
+      - name: Retain verification receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Janny-live-result
+          path: janny-live-result.json
+          retention-days: 7
