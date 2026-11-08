@@ -1,7 +1,7 @@
 import Foundation
 
 public enum CharacterGenre: String, CaseIterable, Sendable {
-    case all, omegaverse, fantasy, everyday, noir, scienceFiction, mystery, adventure, romance, horror, guideverse
+    case all, omegaverse, fantasy, everyday, noir, scienceFiction, mystery, adventure, romance, horror, guideverse, bdsm
     public var title: String {
         switch self {
         case .all: "Alle"
@@ -15,6 +15,7 @@ public enum CharacterGenre: String, CaseIterable, Sendable {
         case .romance: "Romantik"
         case .horror: "Horror"
         case .guideverse: "Guideverse"
+        case .bdsm: "BDSM"
         }
     }
     public var catalogueTopic: String? {
@@ -30,10 +31,15 @@ public enum CharacterGenre: String, CaseIterable, Sendable {
         case .romance: "Romance"
         case .horror: "Horror"
         case .guideverse: "Guideverse"
+        case .bdsm: "BDSM"
         }
     }
     public func matches(_ card: CharacterCard) -> Bool {
         if self == .all { return true }
+        if self == .bdsm {
+            let text = ([card.name, card.tagline, card.description, card.personality, card.scenario, card.creatorNotes] + card.tags).joined(separator: " ")
+            return text.range(of: #"(?i)\bbdsm\b"#, options: .regularExpression) != nil
+        }
         if self == .guideverse {
             let text = ([card.name, card.tagline, card.description, card.personality, card.scenario, card.creatorNotes] + card.tags).joined(separator: " ")
             return text.range(of: #"(?i)\b(?:guide[\s-]*verse|esper[\s-]*verse|esper\s*(?:&|and|und|/|\+)\s*guide)\b"#, options: .regularExpression) != nil

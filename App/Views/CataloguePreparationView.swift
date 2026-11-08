@@ -62,7 +62,7 @@ struct TranslationSetupView: View {
                                 } catch { status = error.localizedDescription }
                                 loading = nil
                             }
-                        }.disabled(loading != nil)
+                        }.disabled(loading != nil).accessibilityIdentifier("prepare-language-" + language)
                     }
                     if loading != nil { ProgressView("Sprachpakete werden vorbereitet …") }
                     if let status { Text(status).font(.subheadline).foregroundStyle(.secondary) }

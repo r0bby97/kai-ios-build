@@ -137,13 +137,13 @@ import XCTest
         app.launchArguments = offlineArguments() + ["-KaiUITranslationSetupTest"]
         app.launch()
         openCard("Sprachpaket-Test", in: app)
-        let setup = app.buttons["Deutsch einrichten"]
+        let setup = app.buttons["card-language-setup"]
         for _ in 0..<4 { if setup.isHittable { break }; app.swipeUp() }
         XCTAssertTrue(setup.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Gespräch beginnen"].isEnabled)
         setup.tap()
         XCTAssertTrue(app.navigationBars["Deutsch einrichten"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Englisch → Deutsch einrichten"].exists)
+        XCTAssertTrue(app.buttons["prepare-language-en"].exists)
     }
     private func offlineArguments() -> [String] {
         ["-FadenUITest", "-FadenUITestStore", UUID().uuidString, "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
@@ -291,8 +291,8 @@ import XCTest
         let third = app.cells.containing(.staticText, identifier: "3. ChatGPT Plus").firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 5)); XCTAssertTrue(third.exists)
         XCTAssertEqual(third.switches["ChatGPT Plus verwenden"].firstMatch.value as? String, "0")
-        third.buttons["3. ChatGPT Plus neu anordnen"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 1,
-            thenDragTo: first.coordinate(withNormalizedOffset: CGVector(dx: 0.94, dy: 0.1)))
+        third.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).press(forDuration: 1.2,
+            thenDragTo: first.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.15)))
         XCTAssertTrue(app.staticTexts["1. ChatGPT Plus"].waitForExistence(timeout: 8))
         let reordered = app.cells.containing(.staticText, identifier: "1. ChatGPT Plus").firstMatch
         XCTAssertEqual(reordered.switches["ChatGPT Plus verwenden"].firstMatch.value as? String, "0")

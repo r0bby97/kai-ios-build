@@ -365,7 +365,7 @@ struct CharacterDetail: View {
                     if card.languageCode == "pending", card.hasDefinition {
                         Text("Deutschübersetzung ausstehend · Gesprächsstart wird nach der Übersetzung freigegeben").font(.caption).foregroundStyle(.secondary)
                         if translating { ProgressView("Ins Deutsche übersetzen …") }
-                        else if needsTranslationSetup { Button("Deutsch einrichten", systemImage: "character.bubble") { languageSetup = true } }
+                        else if needsTranslationSetup { Button("Deutsch einrichten", systemImage: "character.bubble") { languageSetup = true }.accessibilityIdentifier("card-language-setup") }
                         else { Button("Auf Deutsch übersetzen") { store.translator.clearFailures(); Task { await fetch() } } }
                         if let translationNotice { Text(translationNotice).font(.caption).foregroundStyle(.secondary) }
                     }

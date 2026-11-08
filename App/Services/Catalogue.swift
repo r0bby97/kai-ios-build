@@ -10,13 +10,14 @@ enum Catalogue {
     static func search(query: String, page: Int, includeAdult: Bool, genre: CharacterGenre = .all, source: CatalogueSource = .chub) async throws -> CataloguePage {
         if source == .janny { return try await JannyCatalogue.search(query: query, page: page, includeAdult: includeAdult, genre: genre) }
         var url = URLComponents(string: "https://api.chub.ai/search")!
-        // Chub currently has Guideverse text matches but no matching topic tag.
-        let search = genre == .guideverse ? [query, "Guideverse"].filter { !$0.isEmpty }.joined(separator: " ") : OmegaverseSearch.normalized(query)
+        // These genres have text matches in Chub but no matching topic tags.
+        let usesTextSearch = genre == .guideverse || genre == .bdsm
+        let search = usesTextSearch ? [query, genre.title].filter { !$0.isEmpty }.joined(separator: " ") : OmegaverseSearch.normalized(query)
         url.queryItems = [URLQueryItem(name: "search", value: search), .init(name: "first", value: "24"),
             .init(name: "page", value: String(page)), .init(name: "sort", value: "star_count"),
             .init(name: "asc", value: "false"), .init(name: "nsfw", value: String(includeAdult)),
             .init(name: "venus", value: "false"), .init(name: "min_tokens", value: "50")]
-        if genre != .guideverse, let topic = genre.catalogueTopic { url.queryItems?.append(.init(name: "topics", value: topic)) }
+        if !usesTextSearch, let topic = genre.catalogueTopic { url.queryItems?.append(.init(name: "topics", value: topic)) }
         var request = URLRequest(url: url.url!); request.setValue("Kai/1.5", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await CatalogueNetwork.session.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
