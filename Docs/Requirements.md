@@ -42,3 +42,5 @@ Stand: 8. November 2026. „Implementiert“ beschreibt den Quellcode, nicht die
 Die installierte Version 1.5 verwendete für Download-URLs die Prüfung einer API-Basisadresse (`HTTP.requireHTTPS`) und eine Sitzung ohne Weiterleitungen. Das konnte signierte URLs mit Parametern und reguläre CDN-Weiterleitungen ablehnen. Der neue Code trennt diese Dateidownloads von authentifizierten API-Verbindungen. PNG-Metadaten liefern die echte Chatdefinition; Suchtexte werden nicht als Persönlichkeit ausgegeben. Eine Website-Verifikation, ein nicht archivierter Treffer und ein ungültiger Export erhalten unterschiedliche Fehler.
 
 Die Browserstrecke verwendet die normalen öffentlichen Download-Steuerelemente und übernimmt die fertige PNG-/JSON-Datei automatisch. Es werden keine fremden Sitzungstokens ausgelesen, keine Prüfungen gelöst und keine verborgenen Definitionen rekonstruiert. Solange keine vollständige Live-Karte erfolgreich importiert wurde, bleibt die Anforderung offen.
+
+Die geprüften Anbieterregeln sind in [ProviderContentRules.md](ProviderContentRules.md) getrennt nach Erotik und Gewalt dokumentiert.
