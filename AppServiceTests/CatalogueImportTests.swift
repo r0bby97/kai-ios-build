@@ -24,6 +24,7 @@ import FadenCore
         XCTAssertEqual(card.tagline, original.tagline)
         XCTAssertEqual(card.creatorNotes, original.creatorNotes)
         XCTAssertEqual(card.tags, ["Mystery", "Detective"])
+        XCTAssertEqual(GermanLanguage.tags(["BDSM", "NOIR", "AnyPOV"]), ["BDSM", "NOIR", "AnyPOV"], "Translation must not silently delete catalogue genres or role tags")
         XCTAssertEqual(card.sourceURL, original.sourceURL)
         XCTAssertEqual(card.avatarURL, original.avatarURL)
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

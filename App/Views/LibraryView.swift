@@ -282,7 +282,7 @@ private struct FeaturedCharacter: View {
                     VStack(alignment: .leading, spacing: 6) {
                         if card.cast.isEnsemble { Label("Gruppenkarte", systemImage: "person.2.fill").font(.caption) }
                         Text(card.name).font(.system(.title, weight: .semibold)).lineLimit(2)
-                        if card.languageCode == "pending" { Text("Originaltext · Deutsch folgt").font(.caption) }
+                        if card.languageCode == "pending" { Text(card.hasDefinition ? "Originaltext · Deutsch folgt" : "Vorschau · Definition noch nicht geladen").font(.caption) }
                         Text(card.displayTagline).font(.subheadline).lineLimit(2)
                     }
                     Spacer(minLength: 12)
@@ -313,7 +313,7 @@ private struct CharacterDiscoveryRow: View {
                     if favorite { Image(systemName: "star.fill").font(.caption).foregroundStyle(Palette.accent) }
                     if card.cast.isEnsemble { Image(systemName: "person.2.fill").font(.caption).accessibilityLabel("Gruppenkarte") }
                 }
-                if card.languageCode == "pending" { Text("Originaltext · Deutsch folgt").font(.caption2).foregroundStyle(.secondary) }
+                if card.languageCode == "pending" { Text(card.hasDefinition ? "Originaltext · Deutsch folgt" : "Vorschau · Definition noch nicht geladen").font(.caption2).foregroundStyle(.secondary) }
                 if !card.displayTagline.isEmpty { Text(card.displayTagline).font(.subheadline).lineLimit(2) }
                 if summary != card.displayTagline { Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? 4 : 3) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
