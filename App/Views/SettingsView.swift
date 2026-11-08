@@ -14,7 +14,6 @@ struct SettingsView: View {
     @AppStorage("includeAdultCatalogue") private var includeAdult = true
     @State private var preparationSheet = false
     @State private var diagnosticsSheet = false
-    @AppStorage("translationEngine") private var translationEngine = "google"
     @State private var localModel = "mlx-community/Qwen3-1.7B-4bit"
     @State private var personaEditor: UserPersona?
     @State private var sceneEditor: SceneTemplate?
@@ -77,14 +76,10 @@ struct SettingsView: View {
                 }
                 Section("Schreiben") {
                     LabeledContent("Sprache", value: "Deutsch")
-                    Picker("Karten übersetzen mit", selection: $translationEngine) {
-                        Text("Google · online").tag("google")
-                        Text("Apple · auf dem iPhone").tag("apple")
-                    }
-                    Text("Google übersetzt Kartentexte über seine öffentliche Web-Schnittstelle und benötigt keine Sprachpakete oder KI-Tokens. Kartentexte werden dafür an Google übertragen. Apple bleibt als lokale Alternative verfügbar.").font(.caption).foregroundStyle(.secondary)
+                    Text("Apple übersetzt Kartentexte direkt auf dem iPhone. Falls Sprachpakete fehlen, werden sie unter Deutsch einrichten einmalig geladen. Dafür werden keine KI-Tokens verwendet.").font(.caption).foregroundStyle(.secondary)
                     Button("Karten vorbereiten und Deutsch einrichten") { preparationSheet = true }
                     Button("Ausstehende Kartenübersetzungen erneut versuchen") { store.retryCatalogueTranslations(force: true) }.disabled(store.translatingCatalogue)
-                    Text("Karten werden unabhängig von ihrer Ausgangssprache ins Deutsche übersetzt und gespeichert. Google benötigt eine Internetverbindung, Apple einmalig lokale Sprachpakete. Die Wahl ändert nicht die Reihenfolge der Karten.").font(.caption).foregroundStyle(.secondary)
+                    Text("Karten werden unabhängig von ihrer Ausgangssprache ins Deutsche übersetzt und gespeichert. Auf iOS 26 werden installierte Sprachpakete direkt angesprochen; die Kartenübersetzung wartet nicht auf eine versteckte Download-Warteschlange.").font(.caption).foregroundStyle(.secondary)
                     Picker("Maximale Wortzahl", selection: Binding(get: { store.archive.preferences.maximumResponseWords }, set: { store.archive.preferences.responseWords = $0 })) {
                         let limits = Array(Set([50, 100, 200, 400, 800, 1200, store.archive.preferences.maximumResponseWords])).sorted()
                         ForEach(limits, id: \.self) { Text("Bis zu \($0) Wörter").tag($0) }

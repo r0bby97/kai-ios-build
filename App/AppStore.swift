@@ -76,6 +76,10 @@ struct StoryRoute: Identifiable { var id: UUID }
             }, uniquingKeysWith: { first, _ in first })
         }
         #if DEBUG || KAI_TESTING
+        if arguments.contains("-KaiUITranslationSetupTest") {
+            var card = CharacterCard(id: "chub/test/language-setup", name: "Sprachpaket-Test", description: "The detective waits at the station. The rain falls outside.", firstMessage: "Good evening, {{user}}. Come in.")
+            card.languageCode = "pending"; archive.characters = [card]
+        }
         if arguments.contains("-KaiUIInferenceTest") {
             archive.freeOnly = false
             archive.connections = [
@@ -216,7 +220,7 @@ struct StoryRoute: Identifiable { var id: UUID }
         if force { translator.clearFailures() }
         guard catalogueTranslationTask == nil else { return }
         translatingCatalogue = true
-        catalogueTranslationTask = Task { [weak self] in
+        catalogueTranslationTask = Task(priority: .utility) { [weak self] in
             guard let self else { return }
             defer { self.translatingCatalogue = false; self.catalogueTranslationTask = nil; self.save() }
             var attempted = Set<String>(); var translated = 0

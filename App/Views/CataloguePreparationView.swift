@@ -25,7 +25,7 @@ struct CataloguePreparationView: View {
                 } header: { Text("Offline-Bibliothek") }
                 Section {
                     if let status = store.catalogueTranslationStatus { Text(status).font(.subheadline).foregroundStyle(.secondary) }
-                    Text("Die Deutschübersetzung läuft getrennt. Google übersetzt online ohne Sprachpakete; Apple bleibt in den Einstellungen als lokale Alternative wählbar.").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Die Deutschübersetzung läuft getrennt mit Apple auf dem iPhone. Fehlende Sprachpakete werden einmalig über Deutschübersetzung einrichten geladen.").font(.subheadline).foregroundStyle(.secondary)
                     Button("Deutschübersetzung einrichten") { languageSetup = true }
                     Button("Übersetzungen erneut starten") { store.retryCatalogueTranslations(force: true) }.disabled(store.translatingCatalogue)
                 } header: { Text("Sprache") }
@@ -37,6 +37,7 @@ struct CataloguePreparationView: View {
 }
 
 struct TranslationSetupView: View {
+    var onReady: (() -> Void)? = nil
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var scope = UUID().uuidString
@@ -55,7 +56,9 @@ struct TranslationSetupView: View {
                                 do {
                                     try await store.translator.prepare(language: language, scope: scope)
                                     status = "Sprachpakete sind bereit. Die Kartenübersetzung wird fortgesetzt."
+                                    onReady?()
                                     store.retryCatalogueTranslations(force: true)
+                                    if onReady != nil { dismiss() }
                                 } catch { status = error.localizedDescription }
                                 loading = nil
                             }

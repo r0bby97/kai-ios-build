@@ -56,16 +56,21 @@ import FadenCore
             XCTAssertFalse(report.readable.contains("test-not-a-real-key")); XCTAssertFalse(report.readable.contains("Hallo"))
         }
     }
-    func testLiveDedicatedGoogleTranslationPreservesVariablesAndGreeting() async throws {
-        let previous = UserDefaults.standard.string(forKey: "translationEngine")
-        UserDefaults.standard.set("google", forKey: "translationEngine")
-        defer { if let previous { UserDefaults.standard.set(previous, forKey: "translationEngine") } else { UserDefaults.standard.removeObject(forKey: "translationEngine") } }
+    func testMissingNativeLanguagePackReturnsSetupWithoutWaiting() async throws {
+        #if targetEnvironment(simulator)
+        let translator = GermanTranslator()
         let original = CharacterCard(name: "Translation acceptance", description: "The detective waits at the railway station. It is raining outside.", firstMessage: "Good evening, {{user}}. Come in.")
-        let translated = try await GermanTranslator().germanize(original, scope: "acceptance-test")
-        XCTAssertEqual(translated.languageCode, "de")
-        XCTAssertTrue(translated.firstMessage.contains("{{user}}"))
-        XCTAssertTrue(translated.firstMessage.localizedCaseInsensitiveContains("Guten Abend"))
-        XCTAssertNotEqual(translated.description, original.description)
+        let started = Date()
+        do {
+            _ = try await translator.germanize(original, scope: "acceptance-test")
+            XCTFail("A missing language pack must not be silently marked as translated")
+        } catch let setup as TranslationSetupRequired {
+            XCTAssertEqual(setup.language, "en")
+            XCTAssertTrue(translator.missingLanguages.contains("en"))
+            XCTAssertLessThan(Date().timeIntervalSince(started), 2)
+            XCTAssertTrue(setup.localizedDescription.contains("Deutsch einrichten"))
+        }
+        #endif
     }
     private var prompt: BuiltPrompt { .init(system: "Deutsch", messages: [.init(role: "user", content: "Hallo")], retrievedCount: 0, truncated: false) }
 }

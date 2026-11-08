@@ -6,7 +6,7 @@ Formerly Faden. The app keeps the same bundle ID and data location for existing 
 
 Private iPhone character chat for SideStore. Native SwiftUI, a public character catalogue, offline preparation of original public artwork, imported character cards, branching conversations, writing-style memory, interchangeable cloud providers, and optional on-device generation.
 
-On first launch, the app prepares up to 60 popular public Chub cards. Metadata appears before definition downloads, original image caching and cached German translation (Google online or Apple on-device). Users can prepare 24, 60 or 120 cards and cancel without losing completed work. Legacy example cards are hidden from discovery while preserving old conversations. Public definitions and artwork are fetched on the user's device and are not redistributed in this repository.
+On first launch, the app prepares up to 60 popular public Chub cards. Metadata appears before definition downloads, original image caching and cached German translation with Apple on-device. Users can prepare 24, 60 or 120 cards and cancel without losing completed work. Legacy example cards are hidden from discovery while preserving old conversations. Public definitions and artwork are fetched on the user's device and are not redistributed in this repository.
 
 Reusable personas and scenarios customize the start of each conversation. Private groups support up to four characters with manual or automatic speaker selection and sequential all-participant rounds. Every response is attributed to its speaker and shares the current branch's context.
 

@@ -18,6 +18,7 @@ struct LibraryView: View {
     @State private var loadID = UUID()
     @State private var previewTranslationTask: Task<Void, Never>?
     @State private var preparationSheet = false
+    @State private var languageSetup = false
     @AppStorage("catalogueSource") private var catalogueSourceRaw = CatalogueSource.chub.rawValue
     @AppStorage("includeAdultCatalogue") private var includeAdult = true
     @State private var selected: CharacterCard?
@@ -125,6 +126,7 @@ struct LibraryView: View {
             }
             .sheet(isPresented: $showingFilters) { filterSheet }
             .sheet(isPresented: $preparationSheet) { CataloguePreparationView().environment(store) }
+            .sheet(isPresented: $languageSetup) { TranslationSetupView().environment(store) }
             .sheet(item: $selected) { card in CharacterDetail(card: card).environment(store) }
             .sheet(isPresented: $creating) { CharacterEditor().environment(store) }
             .sheet(isPresented: $catalogueBrowser) {
@@ -173,6 +175,7 @@ struct LibraryView: View {
             }
             if let status = store.catalogueTranslationStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
             Button("Karten vorbereiten", systemImage: "arrow.down.circle") { preparationSheet = true }.font(.subheadline)
+            if !store.translator.missingLanguages.isEmpty { Button("Deutsch einrichten", systemImage: "character.bubble") { languageSetup = true }.font(.subheadline) }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var genreBar: some View {
@@ -333,6 +336,8 @@ struct CharacterDetail: View {
     @State private var translationScope = UUID().uuidString
     @State private var sourceBrowser = false
     @State private var automaticBrowserAttempted = false
+    @State private var needsTranslationSetup = false
+    @State private var languageSetup = false
     private var previousStory: Story? {
         store.archive.stories.filter { $0.characterID == card.id && !$0.isMultiCard }.max { $0.updatedAt < $1.updatedAt }
     }
@@ -360,7 +365,8 @@ struct CharacterDetail: View {
                     if card.languageCode == "pending", card.hasDefinition {
                         Text("Deutschübersetzung ausstehend · Gesprächsstart wird nach der Übersetzung freigegeben").font(.caption).foregroundStyle(.secondary)
                         if translating { ProgressView("Ins Deutsche übersetzen …") }
-                        else { Button("Auf Deutsch übersetzen") { store.translator.clearFailures(); Task { await fetch(allowDownload: true) } } }
+                        else if needsTranslationSetup { Button("Deutsch einrichten", systemImage: "character.bubble") { languageSetup = true } }
+                        else { Button("Auf Deutsch übersetzen") { store.translator.clearFailures(); Task { await fetch() } } }
                         if let translationNotice { Text(translationNotice).font(.caption).foregroundStyle(.secondary) }
                     }
                     if card.hasDefinition {
@@ -406,6 +412,9 @@ struct CharacterDetail: View {
                 }
                 .task { await fetch() }
                 .background { TranslationHost(translator: store.translator, scope: translationScope) }
+                .sheet(isPresented: $languageSetup) {
+                    TranslationSetupView(onReady: { needsTranslationSetup = false; Task { await fetch() } }).environment(store)
+                }
                 .sheet(isPresented: $editing) { CharacterEditor(original: card) { card = $0 }.environment(store) }
                 .sheet(isPresented: $sourceBrowser) {
                     if let text = card.sourceURL, let url = URL(string: text) {
@@ -443,7 +452,7 @@ struct CharacterDetail: View {
             card = try await store.translator.germanize(card, scope: translationScope, allowDownload: allowDownload)
             if store.character(card.id) != nil { store.addCard(card) }
         } catch is CancellationError { }
-        catch { translationNotice = error.localizedDescription }
+        catch { needsTranslationSetup = error is TranslationSetupRequired; translationNotice = error.localizedDescription }
     }
 
 }

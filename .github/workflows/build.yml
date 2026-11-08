@@ -29,17 +29,12 @@ jobs:
       - name: Build iPhone application
         run: |
           set -o pipefail
-          xcodebuild -project Faden.xcodeproj -scheme Faden -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CURRENT_PROJECT_VERSION="$((1000 + GITHUB_RUN_NUMBER))" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -skipPackagePluginValidation -skipMacroValidation build | tee build.log
-      - name: Smoke test iPhone simulator
+          xcodebuild -quiet -project Faden.xcodeproj -scheme Faden -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CURRENT_PROJECT_VERSION="$((1000 + GITHUB_RUN_NUMBER))" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -skipPackagePluginValidation -skipMacroValidation build | tee build.log
+      - name: Test optimized iPhone simulator application
         run: |
           set -o pipefail
           task_simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for group in json.load(sys.stdin)["devices"].values() for d in group if d["isAvailable"] and d["name"].startswith("iPhone")]; print(next((d["udid"] for d in ds if d["name"]=="iPhone 17"),ds[0]["udid"]))')
-          xcodebuild test -project Faden.xcodeproj -scheme Faden -configuration Debug -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/StartupTests.xcresult CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee simulator.log
-      - name: Test optimized inference and message persistence
-        run: |
-          set -o pipefail
-          task_simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for group in json.load(sys.stdin)["devices"].values() for d in group if d["isAvailable"] and d["name"].startswith("iPhone")]; print(next((d["udid"] for d in ds if d["name"]=="iPhone 17"),ds[0]["udid"]))')
-          xcodebuild test -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testSendFallbackAndPersistAStreamedReply -only-testing:FadenUITests/StartupTests/testReplyRecoveredWhenStreamCallbackDidNotPersistText -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS=KAI_TESTING CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
+          xcodebuild test -quiet -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES SWIFT_ACTIVE_COMPILATION_CONDITIONS=KAI_TESTING CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
       - name: Package SideStore IPA
         run: bash scripts/package-ipa.sh
       - name: Upload IPA
@@ -63,6 +58,5 @@ jobs:
           name: Build-diagnostics
           path: |
             build.log
-            simulator.log
             optimized-tests.log
           retention-days: 7

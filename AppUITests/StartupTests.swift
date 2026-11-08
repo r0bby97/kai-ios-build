@@ -131,6 +131,20 @@ import XCTest
         XCTAssertTrue(conversation.waitForExistence(timeout: 8)); conversation.tap()
         XCTAssertTrue(reply.waitForExistence(timeout: 8), "The generated message must survive a relaunch")
     }
+    func testMissingLanguagePackOffersSetupAndDoesNotStartAnEnglishChat() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = offlineArguments() + ["-KaiUITranslationSetupTest"]
+        app.launch()
+        openCard("Sprachpaket-Test", in: app)
+        let setup = app.buttons["Deutsch einrichten"]
+        for _ in 0..<4 { if setup.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(setup.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Gespräch beginnen"].isEnabled)
+        setup.tap()
+        XCTAssertTrue(app.navigationBars["Deutsch einrichten"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Englisch → Deutsch einrichten"].exists)
+    }
     private func offlineArguments() -> [String] {
         ["-FadenUITest", "-FadenUITestStore", UUID().uuidString, "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
     }

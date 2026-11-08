@@ -40,17 +40,19 @@ final class TextStreamTests: XCTestCase {
     }
     func testTranslatedChunksKeepTheirOriginalWordBoundaries() throws {
         let text = String(repeating: "A sentence at the station. ", count: 160)
-        let plan = TranslationPlan(text)
-        XCTAssertGreaterThan(plan.chunks.count, 1)
-        let translated = plan.chunks.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        XCTAssertEqual(try plan.restore(translated), text)
+        let plan = CardTranslationBatch(fields: ["body": text])
+        XCTAssertGreaterThan(plan.requests.count, 1)
+        let translated = Dictionary(uniqueKeysWithValues: plan.requests.map { ($0.id, $0.text.trimmingCharacters(in: .whitespacesAndNewlines)) })
+        XCTAssertEqual(try plan.restore(translated)["body"], text)
         let object: [String: Any] = ["type": "message", "content": [["type": "thinking", "thinking": "private"], ["type": "text", "text": "Hallo"]]]
         XCTAssertEqual(ResponseText.finalText(object), "Hallo")
     }
     func testTranslationVariablesAndGuideverseAliases() throws {
-        let plan = TranslationPlan("Hello {{user}}, meet {{char}}.")
-        XCTAssertEqual(try plan.restore(["Hallo ZXQKAIVAR0QXZ, lerne ZXQKAIVAR1QXZ kennen."]), "Hallo {{user}}, lerne {{char}} kennen.")
-        XCTAssertThrowsError(try plan.restore(["Eine beschädigte Übersetzung"]))
+        let plan = CardTranslationBatch(fields: ["greeting": "Hello {{user}}. Welcome, {{char}}."])
+        let values = Dictionary(uniqueKeysWithValues: plan.requests.map { ($0.id, $0.text.replacingOccurrences(of: "Hello", with: "Hallo").replacingOccurrences(of: "Welcome", with: "Willkommen").trimmingCharacters(in: .whitespacesAndNewlines)) })
+        XCTAssertEqual(try plan.restore(values)["greeting"], "Hallo {{user}}. Willkommen, {{char}}.")
+        XCTAssertFalse(plan.requests.contains { $0.text.contains("{{") })
+        XCTAssertThrowsError(try plan.restore([:]))
         XCTAssertTrue(CharacterGenre.guideverse.matches(.init(name: "Rollen", tags: ["Guideverse"])))
         XCTAssertTrue(CharacterGenre.guideverse.matches(.init(name: "Esper and Guide")))
         XCTAssertFalse(CharacterGenre.guideverse.matches(.init(name: "Travel Guide")))
