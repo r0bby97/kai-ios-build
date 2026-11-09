@@ -10,8 +10,10 @@ Geprüft am 9. November 2026. Dies ist eine Einordnung der veröffentlichten Reg
 | DeepSeek Cloud | Pornografische, obszöne und sexuell explizite Inhalte einschließlich sexueller Chatbots sind untersagt. | Gewaltförderung, Anstiftung und Verherrlichung sind untersagt. |
 | xAI / Grok | In der geprüften AUP kein vergleichbares pauschales Verbot einvernehmlicher Erwachsenen-Erotik. Das ist keine Garantie, dass jedes API-Modell jede entsprechende Anfrage akzeptiert. | Verboten sind unter anderem schädliche und illegale Handlungen; uneingeschränkte Gewaltdarstellung wird nicht zugesichert. |
 | OpenRouter | Es gelten die Bedingungen des gewählten Modells und seines Betreibers. Der automatische Gratis-Router wechselt zwischen Modellen und ist deshalb keine verlässliche 18+-Freigabe. | Ebenfalls vom Modell und Betreiber abhängig. |
-| AI Horde (recherchiert, noch nicht angebunden) | Laut offizieller FAQ sind NSFW-Texte erlaubt. Einzelne Worker und Modelle können abweichende Regeln haben. | Keine pauschale dienstweite Textzensur laut FAQ; Regeln der Worker und geltendes Recht bleiben maßgeblich. |
-| Venice API (recherchiert, noch nicht als eigener Anbieter eingerichtet) | Anbieter bewirbt offene Textmodelle; konkrete Modell- und Drittanbieterregeln beachten. | Modellabhängig. API-Aufrufe werden laut aktueller FAQ pro Token abgerechnet; kostenlose Web-Nutzung ist keine kostenlose Kai-Anbindung. |
+| AI Horde | Laut offizieller FAQ sind NSFW-Texte erlaubt. Einzelne Worker und Modelle können abweichende Regeln haben. | Keine pauschale dienstweite Textzensur laut FAQ; Regeln der Worker und geltendes Recht bleiben maßgeblich. |
+| Venice API | Anbieter bewirbt offene Textmodelle; konkrete Modell- und Drittanbieterregeln beachten. | Modellabhängig. API-Aufrufe werden laut aktueller FAQ pro Token abgerechnet; kostenlose Web-Nutzung ist keine kostenlose Kai-Anbindung. |
+| Arli AI | Explizite NSFW-/RP-Modelle im Katalog; nicht jedes Modell hat denselben Freiraum. Gratis-Test ist limitiert. | Modellabhängig; keine pauschale Freigabe aller drastischen Szenen zugesichert. |
+| NanoGPT API | Bietet ausdrücklich offene Modelle für erwachsene Rollenspiele; Auswahl und jeweilige Regeln bleiben maßgeblich. Kostenpflichtig. | Düstere Fiktion wird beworben; keine Zusage für jede Szene. |
 | Lokales Qwen / MLX | Keine vorgeschaltete Cloud-Prüfung. Lizenz, Modelltraining und Antwortverhalten bleiben relevant; lokale Ausführung garantiert keine bestimmte Ausgabe. | Ebenfalls modellabhängig. |
 
 Die geprüfte Anthropic-Seite zeigt bereits eine neue Fassung mit Gültigkeit ab **12. November 2026**. Das Verbot sexueller Chats ist auch in früheren offiziellen Anthropic-Unterlagen beschrieben. Diese künftige Fassung wird nicht als bereits am 8. November wirksam dargestellt.
@@ -30,11 +32,14 @@ Die geprüfte Anthropic-Seite zeigt bereits eine neue Fassung mit Gültigkeit ab
 
 Die gewünschte Kombination aus kostenloser Cloud-Nutzung, guter deutscher Rollenspielqualität und verlässlicher Unterstützung expliziter Erwachsenenthemen ist mit der bisherigen Anbieterauswahl noch nicht abgenommen. Eine bloße Liste bekannter Anbieter erfüllt diese Anforderung nicht.
 
-## Neu geprüfte Gratis-Alternative
+## Richtwerte und zusätzliche Anbindungen
 
-AI Horde ist ein konkreter Kandidat für kostenlose erwachsene Rollenspiele. Die öffentliche Textmodell-Liste und Worker-Metadaten waren erreichbar. Die angebotenen Cydonia-, Stheno-, Mini-Magnum- und Behemoth-Worker meldeten NSFW-Unterstützung. Das ist noch kein bestandener Test der deutschen Ausgabequalität oder eine Zusage für jede Szene. Wartezeiten und Kontextgrenzen schwanken; Worker können die verarbeiteten Texte technisch einsehen. Es wurde kein persönlicher Chat an diesen Dienst geschickt. Details: [FreeRoleplayModels.md](FreeRoleplayModels.md).
+AI Horde ist inzwischen angebunden und lieferte über den neuen Client kurze deutsche Antworten mit Mini-Magnum, Stheno und Cydonia. Die App zeigt Erotik und fiktive Gewalt getrennt in Verbindungsübersicht und Rangfolge. Ein Tipp öffnet Erklärung und Anbieterquelle. „Viel Freiraum“ ist ein Richtwert, kein Versprechen jeder Ausgabe; OpenRouter und unbekannte Modellauswahl werden nicht pauschal als offen markiert.
+
+Arli, NanoGPT und Venice sind als benannte API-Optionen ergänzt. Arli hat einen kleinen offiziellen Gratis-Test, NanoGPT und Venice sind für diese API-Nutzung nach Verbrauch kostenpflichtig. Bezahlte Optionen bleiben bei aktiver Kostensperre ausgeschlossen. Weitere geprüfte Kandidaten und die genauen Prüfgrenzen stehen in [FreeRoleplayModels.md](FreeRoleplayModels.md) und [Validation-RoleplayProviders.md](Validation-RoleplayProviders.md).
 
 - AI Horde FAQ: https://aihorde.net/faq/
-- AI Horde kostenlose Nutzung: https://aihorde.net/register
-- AI Horde öffentliche Textmodell-Liste: https://aihorde.net/api/v2/status/models?type=text
+- Arli API und Gratis-Test: https://www.arliai.com/docs/textgen
+- Arli Bedingungen: https://www.arliai.com/terms
+- NanoGPT offene Modelle: https://nano-gpt.com/use-cases/uncensored-ai
 - Venice API-Abrechnung: https://venice.ai/faqs/all

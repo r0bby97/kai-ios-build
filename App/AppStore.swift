@@ -71,6 +71,7 @@ struct StoryRoute: Identifiable { var id: UUID }
             archive.characters = (try? CharacterCard.starters()) ?? []
         }
         #endif
+        archive.introduceRoleplayProviders()
         archive.preferences.language = "Deutsch"
         for index in archive.stories.indices where archive.stories[index].cardCasts == nil {
             archive.stories[index].cardCasts = Dictionary(archive.stories[index].participantIDs.compactMap { id in
@@ -78,6 +79,9 @@ struct StoryRoute: Identifiable { var id: UUID }
             }, uniquingKeysWith: { first, _ in first })
         }
         #if DEBUG || KAI_TESTING
+        if arguments.contains("-FadenUITest") {
+            for index in archive.connections.indices where archive.connections[index].kind == .aiHorde { archive.connections[index].enabled = false }
+        }
         if arguments.contains("-KaiUITranslationSetupTest") {
             var card = CharacterCard(id: "chub/test/language-setup", name: "Sprachpaket-Test", description: "The detective waits at the station. The rain falls outside.", firstMessage: "Good evening, {{user}}. Come in.")
             card.languageCode = "pending"; archive.characters = [card]
@@ -468,7 +472,7 @@ struct StoryRoute: Identifiable { var id: UUID }
                         } else {
                             let credential = connection.kind == .chatGPT ? try await self.auth.accessToken(connection.id) : key
                             result = try await CloudEngine.generate(connection: connection, model: model, key: credential,
-                                prompt: prompt, maxTokens: outputBudget, onDelta: onDelta)
+                                prompt: prompt, maxTokens: outputBudget, onStatus: { [weak self] text in self?.generationStatus = text }, onDelta: onDelta)
                         }
                         // Verify the stored message, rather than a captured Boolean across await.
                         // The engine result can restore an answer if a callback failed to persist it.
@@ -486,9 +490,9 @@ struct StoryRoute: Identifiable { var id: UUID }
                             throw ProviderFailure(text: "Die empfangene Antwort konnte nicht im Gespräch gespeichert werden. Fehlerberichte enthalten die Transportdaten.")
                         }
                         self.mutate(storyID) { story in
-                            if let i = story.messages.firstIndex(where: { $0.id == assistantID }) { story.messages[i].interrupted = false }
+                            if let i = story.messages.firstIndex(where: { $0.id == assistantID }) { story.messages[i].interrupted = false; story.messages[i].model = report.model }
                         }
-                        return CompletedReply(messageID: assistantID, speakerID: speakerID, connection: connection, model: model)
+                        return CompletedReply(messageID: assistantID, speakerID: speakerID, connection: connection, model: report.model)
                     } catch {
                         if Task.isCancelled || error is CancellationError { break outer }
                         problems.append("\(connection.name) · \(model): \(error.localizedDescription)")
@@ -518,7 +522,7 @@ struct StoryRoute: Identifiable { var id: UUID }
               InsightSchedule.isDue(story: snapshot, frequency: archive.preferences.effectiveInsightFrequency),
               let character = character(reply.speakerID),
               let connection = archive.connections.first(where: { $0.id == reply.connection.id }),
-              connection.permittedModels(freeOnly: archive.freeOnly).contains(reply.model) else { return }
+              connection.permitsReuse(of: reply.model, freeOnly: archive.freeOnly) else { return }
         // An optional aside never escalates to a different account or paid fallback.
         let kind = InsightSchedule.kind(for: reply.messageID)
         mutate(storyID) { story in

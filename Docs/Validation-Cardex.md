@@ -27,4 +27,4 @@ Stand: 9. November 2026. Quellcode vorbereitet; kein neuer GitHub-Actions-Lauf u
 
 Der neue native UI-Test `testAllSourcesAndCardexAreSelectable` ist vorbereitet, aber noch nicht ausgeführt. SwiftUI-Typprüfung, native Bildcache-Persistenz, Apple-Übersetzung mit installierten Sprachpaketen und die Bedienung der neuen Auswahl sind auf iOS noch zu prüfen. Die Linux-Livetests prüfen keine SwiftUI-Oberfläche und ersetzen diese Abnahme nicht.
 
-Es wurden keine privaten Chats, API-Zugangsdaten oder vollständigen fremden Kartentexte in das öffentliche Repository übernommen. Die neue KI-Recherche ist in [FreeRoleplayModels.md](FreeRoleplayModels.md) dokumentiert; AI Horde ist noch nicht angebunden.
+Es wurden keine privaten Chats, API-Zugangsdaten oder vollständigen fremden Kartentexte in das öffentliche Repository übernommen. Die neue KI-Recherche ist in [FreeRoleplayModels.md](FreeRoleplayModels.md) dokumentiert; AI Horde ist inzwischen angebunden; die separaten Prüfungen stehen in [Validation-RoleplayProviders.md](Validation-RoleplayProviders.md).

@@ -1,10 +1,13 @@
 import Foundation
 
 public enum APIProviderPreset: String, Codable, CaseIterable, Identifiable, Sendable {
-    case openAI, claude, gemini, grok, deepSeek
+    case openAI, claude, gemini, grok, deepSeek, arli, nanoGPT, venice
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .openAI: "OpenAI API"; case .claude: "Claude API"; case .gemini: "Gemini API"; case .grok: "Grok API"; case .deepSeek: "DeepSeek API" }
+        switch self {
+        case .openAI: "OpenAI API"; case .claude: "Claude API"; case .gemini: "Gemini API"; case .grok: "Grok API"; case .deepSeek: "DeepSeek API"
+        case .arli: "Arli AI"; case .nanoGPT: "NanoGPT API"; case .venice: "Venice API"
+        }
     }
     public var kind: ProviderKind {
         switch self { case .openAI: .openAI; case .claude: .anthropic; default: .compatible }
@@ -16,6 +19,9 @@ public enum APIProviderPreset: String, Codable, CaseIterable, Identifiable, Send
         case .gemini: "https://generativelanguage.googleapis.com/v1beta/openai"
         case .grok: "https://api.x.ai/v1"
         case .deepSeek: "https://api.deepseek.com/v1"
+        case .arli: "https://api.arliai.com/v1"
+        case .nanoGPT: "https://nano-gpt.com/api/v1"
+        case .venice: "https://api.venice.ai/api/v1"
         }
     }
     public var keyURL: URL {
@@ -26,6 +32,9 @@ public enum APIProviderPreset: String, Codable, CaseIterable, Identifiable, Send
         case .gemini: address = "https://aistudio.google.com/api-keys"
         case .grok: address = "https://console.x.ai"
         case .deepSeek: address = "https://platform.deepseek.com/api_keys"
+        case .arli: address = "https://www.arliai.com/account"
+        case .nanoGPT: address = "https://nano-gpt.com/api"
+        case .venice: address = "https://venice.ai/settings/api"
         }
         return URL(string: address)!
     }
@@ -36,11 +45,15 @@ public enum APIProviderPreset: String, Codable, CaseIterable, Identifiable, Send
         case .gemini: "Verwendet einen Gemini-API-Schlüssel aus Google AI Studio. Free Tier und Kosten hängen vom Modell, Projekt und dessen Abrechnung ab; ein Google-AI-Abo ist keine pauschale API-Flatrate."
         case .grok: "Verwendet einen xAI-API-Schlüssel. API-Nutzung wird separat zu den Modellpreisen abgerechnet und nicht aus dem Grok-Abo-Kontingent bezahlt."
         case .deepSeek: "Verwendet einen DeepSeek-API-Schlüssel und das API-Guthaben dieses Kontos. Ein Chat-Zugang ersetzt keinen API-Schlüssel."
+        case .arli: "Der kostenlose Testzugang erlaubt laut Arli fünf Anfragen je Modell alle zwei Tage, maximal 12K Kontext. Darüber hinaus gibt es bezahlte Tarife. Verwende für den Gratis-Modus ein kostenloses Testkonto. Kai legt keine Konten an und bucht keinen Tarif."
+        case .nanoGPT: "Offizielle API mit Modellen für erwachsene Rollenspiele. Die passenden Modelle sind kostenpflichtig und werden nach Verbrauch abgerechnet. Das kostenlose Web-Modell ist kein Gratis-API-Zugang. Standardmäßig bei aktiver Kostensperre ausgeschlossen."
+        case .venice: "Offizielle API mit offenen Textmodellen. API-Aufrufe verbrauchen Guthaben; kostenlose Web-Prompts sind kein kostenloses API-Kontingent. Die Inhaltsregeln des ausgewählten Modells gelten weiterhin."
         }
     }
     public func connection() -> Connection {
         var connection = Connection(name: title, kind: kind, baseURL: baseURL, enabled: false, allowsCosts: true)
         connection.apiPreset = self
+        if self == .arli { connection.freeTierConfirmed = true; connection.allowsCosts = false; connection.contextTokens = 8192 }
         return connection
     }
     public func matches(_ connection: Connection) -> Bool {

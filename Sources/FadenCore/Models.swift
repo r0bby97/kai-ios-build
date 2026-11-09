@@ -235,7 +235,7 @@ public struct StyleProfile: Sendable {
 }
 
 public enum ProviderKind: String, Codable, CaseIterable, Sendable {
-    case openRouter, compatible, chatGPT, local, openAI, anthropic
+    case openRouter, compatible, chatGPT, local, openAI, anthropic, aiHorde
     public var title: String {
         switch self {
         case .openRouter: "OpenRouter"
@@ -244,6 +244,7 @@ public enum ProviderKind: String, Codable, CaseIterable, Sendable {
         case .local: "Auf dem iPhone"
         case .openAI: "OpenAI API"
         case .anthropic: "Claude API"
+        case .aiHorde: "AI Horde"
         }
     }
 }
@@ -258,14 +259,18 @@ public struct Connection: Codable, Identifiable, Equatable, Sendable {
     public var contextTokens: Int
     public var apiPreset: APIProviderPreset?
     public var workspaceID: String?
+    public var freeTierConfirmed: Bool?
+    public var hordeWaitSeconds: Int?
     public var requiresAPIKey: Bool { apiPreset != nil || [.openRouter, .openAI, .anthropic].contains(kind) }
     public init(id: UUID = UUID(), name: String, kind: ProviderKind, baseURL: String = "",
                 models: [String] = [], enabled: Bool = true, allowsCosts: Bool = false, contextTokens: Int = 8192) {
         self.id = id; self.name = name; self.kind = kind; self.baseURL = baseURL
         self.models = models; self.enabled = enabled; self.allowsCosts = allowsCosts; self.contextTokens = contextTokens
     }
+    public static var horde: Connection { .init(name: "AI Horde · Rollenspiel", kind: .aiHorde, baseURL: AIHordeClient.baseURL, models: [HordeCodec.automaticModel], contextTokens: 8192) }
     public static let initial: [Connection] = [
         .init(name: "Kostenlose Cloud", kind: .openRouter, baseURL: "https://openrouter.ai/api/v1", models: ["openrouter/free"]),
+        .horde,
         .init(name: "Lokal · Qwen 3", kind: .local, models: ["mlx-community/Qwen3-1.7B-4bit"], contextTokens: 4096),
         .init(name: "ChatGPT Plus", kind: .chatGPT, baseURL: "https://api.openai.com/v1", models: [], enabled: false)
     ]
@@ -275,8 +280,14 @@ public struct Connection: Codable, Identifiable, Equatable, Sendable {
             return models.filter { $0 == "openrouter/free" || $0.hasSuffix(":free") }
         }
         // An unpriced third-party endpoint must be explicitly authorized, not assumed free.
-        if [.compatible, .openAI, .anthropic].contains(kind) && freeOnly { return [] }
+        if [.compatible, .openAI, .anthropic].contains(kind) && freeOnly {
+            guard apiPreset == .arli, apiPreset?.matches(self) == true, freeTierConfirmed == true else { return [] }
+        }
         return models.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+    public func permitsReuse(of model: String, freeOnly: Bool) -> Bool {
+        let permitted = permittedModels(freeOnly: freeOnly)
+        return permitted.contains(model) || (kind == .aiHorde && permitted.contains(HordeCodec.automaticModel) && HordeCodec.isRoleplayModel(model))
     }
 }
 
@@ -291,6 +302,7 @@ public struct Archive: Codable, Sendable {
     public var personas: [UserPersona]
     public var scenes: [SceneTemplate]
     public var menuTheme: MenuTheme
+    public var providerSetupVersion: Int?
     public var libraryCharacters: [CharacterCard] { characters.filter { !$0.isBundledExample } }
     public init(characters: [CharacterCard] = [], stories: [Story] = [], preferences: WritingPreferences = .init(),
                 connections: [Connection] = Connection.initial, freeOnly: Bool = true) {
@@ -298,8 +310,9 @@ public struct Archive: Codable, Sendable {
         self.connections = connections; self.freeOnly = freeOnly
         self.favoriteIDs = []; self.personas = []; self.scenes = SceneTemplate.initial
         self.menuTheme = .dark
+        self.providerSetupVersion = 1
     }
-    enum CodingKeys: String, CodingKey { case schemaVersion, characters, stories, preferences, connections, freeOnly, favoriteIDs, personas, scenes, menuTheme }
+    enum CodingKeys: String, CodingKey { case schemaVersion, characters, stories, preferences, connections, freeOnly, favoriteIDs, personas, scenes, menuTheme, providerSetupVersion }
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         schemaVersion = try values.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
@@ -312,6 +325,12 @@ public struct Archive: Codable, Sendable {
         personas = try values.decodeIfPresent([UserPersona].self, forKey: .personas) ?? []
         scenes = try values.decodeIfPresent([SceneTemplate].self, forKey: .scenes) ?? SceneTemplate.initial
         menuTheme = try values.decodeIfPresent(MenuTheme.self, forKey: .menuTheme) ?? .dark
+        providerSetupVersion = try values.decodeIfPresent(Int.self, forKey: .providerSetupVersion)
+    }
+    public mutating func introduceRoleplayProviders() {
+        guard (providerSetupVersion ?? 0) < 1 else { return }
+        if !connections.contains(where: { $0.kind == .aiHorde }) { connections.append(.horde) }
+        providerSetupVersion = 1
     }
     public func validate() throws {
         guard schemaVersion == 1 else { throw FadenError.invalidData("Dieses Backup benötigt eine neuere App-Version.") }

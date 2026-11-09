@@ -2,7 +2,9 @@ Kai 1.6.0 – Prüfbuild
 
 Cardex ergänzt den öffentlichen Kartenkatalog um einen direkten Import vollständiger Charakterkarten und ihrer Kartenbilder. „Online entdecken“ bietet „Alle“, „Cardex“, „Chub“ und „JannyAI“ an. Die gemeinsame Ansicht veröffentlicht Quellen unabhängig und behält beim Nachladen getrennte Seitenstände. Übersetzung und Bilder blockieren die Suchvorschau nicht.
 
-Lokal bestehen 75 Kernlogiktests sowie echte Cardex-Such-, Nachlade- und Importprüfungen. Die gemeinsame Suche wurde mit dem App-Suchdienst auf dem Arbeitsrechner geprüft. Die neue native iOS-Bedienprüfung und Bildcache-Abnahme stehen noch aus; siehe Docs/Validation-Cardex.md. Es wurde dafür bislang keine neue IPA und kein Actions-Lauf gestartet.
+AI Horde ergänzt die kostenlose Generierung mit anonymem Zugang, Wartestatus und sauberem Abbruch. Mini-Magnum und Stheno lieferten in echten Verbindungstests deutsche Antworten. Arli hat einen kleinen Gratis-Test; NanoGPT und Venice sind zusätzliche kostenpflichtige API-Optionen. Die KI-Rangfolge zeigt getrennte Inhaltsrichtwerte für Erotik und fiktive Gewalt mit Erklärungen und Quellen.
+
+Lokal bestanden 92 Kernlogiktests und fünf zusätzliche Tests der Anbieter-Anbindung. Cardex-Suche und -Import sowie Horde-Antworten wurden zusätzlich live geprüft. Der Build-Ablauf prüft anschließend die native iOS-App, bevor er die IPA erstellt. Prüfberichte: Docs/Validation-Cardex.md und Docs/Validation-RoleplayProviders.md.
 
 Builds starten ausschließlich manuell im öffentlichen Repository; private Jobs sind gesperrt. JannyAI-Suche funktioniert, sein direkter Kartendownload bleibt durch Website-Prüfungen eingeschränkt. Es öffnet sich bei einem Fehler kein Browser automatisch. Echte KI-Konten und lokale MLX-Generierung auf dem konkreten iPhone bleiben gesondert abzunehmen. Der vollständige Anforderungsabgleich steht in Docs/Requirements.md.
 

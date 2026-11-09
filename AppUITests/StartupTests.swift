@@ -294,6 +294,22 @@ import XCTest
         let restored = wordControl()
         XCTAssertTrue((restored.label + " " + String(describing: restored.value)).contains("800"))
     }
+    func testProviderContentGuidanceIsVisibleInPriorityOverview() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = offlineArguments(); app.launch()
+        app.tabBars.buttons["Einstellungen"].tap()
+        let order = app.buttons["connection-priority-order"]
+        for _ in 0..<7 { if order.isHittable { break }; app.swipeUp() }
+        order.tap()
+        let guide = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Inhaltsrichtwerte für AI Horde")).firstMatch
+        XCTAssertTrue(guide.waitForExistence(timeout: 5))
+        XCTAssertTrue(guide.label.contains("Erotik: viel Freiraum"))
+        guide.tap()
+        XCTAssertTrue(app.staticTexts["Erotische Inhalte"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Fiktive Gewalt"].exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "provider-content-source").firstMatch.exists)
+        attach(app, name: "Anbieter-Inhaltsrichtwerte")
+    }
     func testProviderPriorityCanBeDraggedAndPreservesDisabledChatGPT() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = offlineArguments(); app.launch()
@@ -306,7 +322,7 @@ import XCTest
         }
         openOrder()
         let first = app.cells.containing(.staticText, identifier: "1. Kostenlose Cloud").firstMatch
-        let third = app.cells.containing(.staticText, identifier: "3. ChatGPT Plus").firstMatch
+        let third = app.cells.containing(.staticText, identifier: "4. ChatGPT Plus").firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 5)); XCTAssertTrue(third.exists)
         XCTAssertEqual(third.switches["ChatGPT Plus verwenden"].firstMatch.value as? String, "0")
         third.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)).press(forDuration: 1.2,

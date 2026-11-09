@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import FadenCore
 
 struct ProviderFailure: LocalizedError {
@@ -18,11 +21,21 @@ struct RemoteModel: Identifiable {
 }
 
 enum CloudEngine {
-    static func models(connection: Connection, key: String) async throws -> [RemoteModel] {
+    static func models(connection: Connection, key: String, session: URLSession = HTTP.session) async throws -> [RemoteModel] {
+        if connection.kind == .aiHorde {
+            _ = try validatedBase(connection)
+            let models = try await AIHordeClient(session: session === HTTP.session ? nil : session).models()
+            return [.init(id: HordeCodec.automaticModel, name: "Automatische Rollenspielauswahl", isFree: true, context: models.map(\.contextTokens).max() ?? 0)] +
+                models.map { .init(id: $0.id, name: $0.id, isFree: true, context: $0.contextTokens) }
+        }
         let base = try validatedBase(connection)
         var request = URLRequest(url: base.appendingPathComponent("models"))
+        if connection.apiPreset == .venice {
+            var components = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
+            components.queryItems = [.init(name: "type", value: "text")]; request.url = components.url
+        }
         authenticate(&request, connection: connection, key: key)
-        let (data, response) = try await HTTP.session.data(for: request)
+        let (data, response) = try await session.data(for: request)
         try checkStatus(response, data: data)
         let object = try HTTP.object(data)
         let models = object["models"] as? [[String: Any]] ?? object["data"] as? [[String: Any]] ?? []
@@ -49,7 +62,20 @@ enum CloudEngine {
     }
 
     @MainActor static func generate(connection: Connection, model: String, key: String,
-        prompt: BuiltPrompt, maxTokens: Int, session: URLSession = HTTP.session, onDelta: @escaping @MainActor (String) -> Bool) async throws -> InferenceResult {
+        prompt: BuiltPrompt, maxTokens: Int, session: URLSession = HTTP.session,
+        onStatus: @escaping @MainActor (String) -> Void = { _ in }, onDelta: @escaping @MainActor (String) -> Bool) async throws -> InferenceResult {
+        if connection.kind == .aiHorde {
+            do {
+                _ = try validatedBase(connection)
+                var result = try await AIHordeClient(session: session === HTTP.session ? nil : session).generate(model: model, key: key, prompt: prompt, maxTokens: maxTokens,
+                    contextTokens: connection.contextTokens, timeoutSeconds: Double(connection.hordeWaitSeconds ?? 90), providerName: connection.name,
+                    progress: { update in await MainActor.run { onStatus(update.message) } })
+                if onDelta(result.text) { result.diagnostic.outcome = "Wortgrenze erreicht" }
+                return result
+            } catch let failure as HordeFailure {
+                throw ProviderFailure(text: failure.message, blocksConnection: failure.blocksConnection, retryable: failure.retryable, diagnostic: failure.diagnostic)
+            }
+        }
         var report = InferenceDiagnostic(provider: connection.name, model: model, host: URL(string: connection.baseURL)?.host)
         do {
             let base = try validatedBase(connection)
@@ -61,7 +87,7 @@ enum CloudEngine {
             request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
             authenticate(&request, connection: connection, key: key)
             if connection.kind == .openRouter { request.setValue("Kai", forHTTPHeaderField: "X-Title") }
-            request.httpBody = try InferencePayload.encode(kind: connection.kind, model: model, prompt: prompt, maxTokens: maxTokens)
+            request.httpBody = try InferencePayload.encode(kind: connection.kind, model: model, prompt: prompt, maxTokens: maxTokens, preset: connection.apiPreset)
             let (bytes, response) = try await session.bytes(for: request)
             defer { bytes.task.cancel() }
             guard let response = response as? HTTPURLResponse else { throw ProviderFailure(text: "Keine HTTP-Serverantwort empfangen.") }
@@ -179,6 +205,9 @@ enum CloudEngine {
 
     private static func validatedBase(_ connection: Connection) throws -> URL {
         let base = try HTTP.requireHTTPS(connection.baseURL)
+        if connection.kind == .aiHorde && base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) != AIHordeClient.baseURL {
+            throw FadenError.invalidData("Horde-Schlüssel dürfen nur an die offizielle AI-Horde-API gesendet werden.")
+        }
         if connection.kind == .chatGPT && base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) != "https://api.openai.com/v1" {
             throw FadenError.invalidData("ChatGPT-Anmeldedaten dürfen nur an die offizielle API gesendet werden.")
         }

@@ -6,7 +6,7 @@ final class APIProviderTests: XCTestCase {
         messages: [.init(role: "assistant", content: "Ein gespeicherter Anfang."), .init(role: "user", content: "„Guten Abend.“")], retrievedCount: 0, truncated: false)
 
     func testPresetsUseOfficialEndpointsRequireKeysAndStartDisabled() throws {
-        XCTAssertEqual(APIProviderPreset.allCases.count, 5)
+        XCTAssertEqual(APIProviderPreset.allCases.count, 8)
         for preset in APIProviderPreset.allCases {
             var connection = preset.connection()
             XCTAssertTrue(preset.matches(connection))
@@ -14,6 +14,7 @@ final class APIProviderTests: XCTestCase {
             XCTAssertEqual(preset.keyURL.scheme, "https")
             XCTAssertTrue(connection.requiresAPIKey); XCTAssertFalse(connection.enabled)
             connection.enabled = true; connection.allowsCosts = false; connection.models = ["configured-model"]
+            connection.freeTierConfirmed = false
             XCTAssertTrue(connection.permittedModels(freeOnly: true).isEmpty, "An unverified API tier must not be assumed free")
             XCTAssertEqual(connection.permittedModels(freeOnly: false), ["configured-model"])
             connection.baseURL = "https://example.invalid/v1"
@@ -34,6 +35,15 @@ final class APIProviderTests: XCTestCase {
         XCTAssertTrue(turns.contains { $0["content"] == "Ein gespeicherter Anfang." })
         XCTAssertEqual(turns.last?["content"], "„Guten Abend.“")
         XCTAssertFalse(turns.contains { $0["role"] == "system" })
+    }
+    func testVeniceKeepsCardSystemPromptWithoutVendorPersonaOrVisibleReasoning() throws {
+        let data = try InferencePayload.encode(kind: .compatible, model: "text-model", prompt: prompt, maxTokens: 64, preset: .venice)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let options = try XCTUnwrap(body["venice_parameters"] as? [String: Bool])
+        XCTAssertEqual(options["include_venice_system_prompt"], false)
+        XCTAssertEqual(options["disable_thinking"], true)
+        XCTAssertEqual(options["strip_thinking_response"], true)
+        XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], prompt.system)
     }
     func testClaudeContinuationDoesNotSendAnAssistantPrefill() throws {
         var continuing = prompt

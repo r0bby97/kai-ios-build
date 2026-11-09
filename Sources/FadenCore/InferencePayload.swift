@@ -1,7 +1,7 @@
 import Foundation
 
 public enum InferencePayload {
-    public static func encode(kind: ProviderKind, model: String, prompt: BuiltPrompt, maxTokens: Int) throws -> Data {
+    public static func encode(kind: ProviderKind, model: String, prompt: BuiltPrompt, maxTokens: Int, preset: APIProviderPreset? = nil) throws -> Data {
         let messages = prompt.messages.map { ["role": $0.role, "content": $0.content] }
         let body: [String: Any]
         if kind == .anthropic {
@@ -22,6 +22,9 @@ public enum InferencePayload {
             var chatBody: [String: Any] = ["model": model, "messages": [["role": "system", "content": prompt.system]] + messages,
                     "stream": true, "max_tokens": maxTokens]
             if kind == .openRouter { chatBody["reasoning"] = ["enabled": false, "exclude": true] }
+            if preset == .venice {
+                chatBody["venice_parameters"] = ["include_venice_system_prompt": false, "disable_thinking": true, "strip_thinking_response": true]
+            }
             body = chatBody
         }
         return try JSONSerialization.data(withJSONObject: body)

@@ -44,7 +44,7 @@ struct SettingsView: View {
                 Section {
                     Toggle("Kostenpflichtige API-Modelle ausschließen", isOn: $store.archive.freeOnly)
                 } footer: {
-                    Text("Verwendet lokale Modelle, ausdrücklich kostenlose OpenRouter-Modelle und freigegebenes ChatGPT-Kontingent. Eigene API-Verbindungen werden übersprungen. Bei ChatGPT gelten zusätzlich deine dortigen Credit-Einstellungen. Kai löst keine Käufe oder Aufladungen aus.")
+                    Text("Verwendet AI Horde, lokale Modelle, ausdrücklich kostenlose OpenRouter-Modelle, bestätigte Arli-Gratis-Testzugänge und freigegebenes ChatGPT-Kontingent. Andere API-Verbindungen werden übersprungen. Bei ChatGPT gelten zusätzlich deine dortigen Credit-Einstellungen. Kai löst keine Käufe oder Aufladungen aus.")
                 }
                 Section {
                     Button("Rangfolge ändern", systemImage: "arrow.up.arrow.down") { connectionOrder = true }
@@ -53,6 +53,7 @@ struct SettingsView: View {
                         ConnectionSettingsRow(connection: connection) { editing = connection }
                     }
                     Menu("Anbieter hinzufügen", systemImage: "plus") {
+                        Button("AI Horde · kostenlos") { editing = .horde }
                         Button("OpenRouter") { editing = Connection(name: "OpenRouter", kind: .openRouter, baseURL: "https://openrouter.ai/api/v1", models: ["openrouter/free"]) }
                         Button("ChatGPT-Konto") { editing = Connection(name: "ChatGPT-Konto", kind: .chatGPT, baseURL: "https://api.openai.com/v1") }
                         ForEach(APIProviderPreset.allCases) { preset in
@@ -205,11 +206,27 @@ struct ConnectionEditor: View {
                             .font(.caption).foregroundStyle(.secondary)
                         Text("Wenn du keine zusätzlichen Kosten möchtest, deaktiviere in den ChatGPT-Nutzungseinstellungen zusätzliche Credits für Apps. Kai kann diese externe Kontoeinstellung nicht prüfen.").font(.caption).foregroundStyle(.secondary)
                     }
+                } else if value.kind == .aiHorde {
+                    Section("Kostenlose Rollenspiel-Cloud") {
+                        Text("Ohne Anmeldung nutzbar. Optional kannst du einen regulären Horde-Schlüssel für die Priorisierung eintragen. Kudos steuern die Warteschlange; sie sind kein kostenpflichtiges Token-Abo.").font(.subheadline)
+                        SecureField("Horde-Schlüssel (optional)", text: $key).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Link("Regulären kostenlosen Horde-Zugang erstellen", destination: URL(string: "https://aihorde.net/register")!)
+                        Picker("Wartezeit bis zum Anbieterwechsel", selection: Binding(get: { value.hordeWaitSeconds ?? 90 }, set: { value.hordeWaitSeconds = $0 })) {
+                            ForEach([30, 60, 90, 180], id: \.self) { Text("Bis zu \($0) Sekunden").tag($0) }
+                        }
+                        Text("Freiwillige Rechnerbetreiber können die übermittelten Chattexte technisch mitlesen. Die Wartezeit schwankt. Ist kein passender Rechner frei, bricht Kai den Auftrag ab und probiert die nächste eingerichtete Verbindung.").font(.caption).foregroundStyle(.secondary)
+                    }
                 } else if value.kind != .local {
                     Section("API-Zugang") {
                         if let preset = value.apiPreset {
                             Text(preset.accountNote).font(.subheadline).foregroundStyle(.secondary)
                             Link("API-Schlüssel erstellen", destination: preset.keyURL)
+                        }
+                        if value.apiPreset == .arli {
+                            Toggle("Ich verwende ein kostenloses Arli-Testkonto", isOn: Binding(get: { value.freeTierConfirmed == true }, set: {
+                                value.freeTierConfirmed = $0; value.allowsCosts = !$0
+                            }))
+                            Text("Nur für den offiziellen Gratis-Test: fünf Anfragen je Modell alle zwei Tage. Der Schalter ändert deinen Tarif beim Anbieter nicht.").font(.caption).foregroundStyle(.secondary)
                         }
                         SecureField("API-Schlüssel", text: $key).textInputAutocapitalization(.never).autocorrectionDisabled()
                         if value.kind == .anthropic {
@@ -218,11 +235,12 @@ struct ConnectionEditor: View {
                         }
                         if value.kind == .openRouter { Link("OpenRouter-Schlüssel erstellen", destination: URL(string: "https://openrouter.ai/keys")!) }
                         Text("Der Schlüssel wird im iOS-Schlüsselbund gespeichert und nicht ins Backup aufgenommen.").font(.caption).foregroundStyle(.secondary)
-                        if value.apiPreset != nil && store.archive.freeOnly {
+                        if value.apiPreset != nil && store.archive.freeOnly && !(value.apiPreset == .arli && value.freeTierConfirmed == true && !value.allowsCosts) {
                             Text("Diese API-Verbindung wird beim Chatten übersprungen, solange in den Einstellungen „Kostenpflichtige API-Modelle ausschließen“ eingeschaltet ist.").font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
+                ProviderContentSection(connection: contentPreview)
                 Section {
                     TextField("Modell-IDs, eine pro Zeile", text: $modelText, axis: .vertical).lineLimit(2...8).textInputAutocapitalization(.never).autocorrectionDisabled()
                     if value.kind != .local { Button("Verfügbare Modelle laden") { Task { await fetchModels() } }.disabled(loading) }
@@ -233,7 +251,7 @@ struct ConnectionEditor: View {
                     }
                 } header: { Text("Modelle · zuerst die oberste ID") }
                 footer: {
-                    Text(value.kind == .local ? "Für das iPhone zunächst ein kleines quantisiertes MLX-Modell verwenden, etwa mlx-community/Qwen3-1.7B-4bit. Das Modell muss vor dem ersten Chat ausdrücklich geladen werden." : value.kind == .openRouter ? "openrouter/free wechselt zwischen verfügbaren Gratis-Modellen. Bestimmte Modellfamilien und Premium-Abos anderer Apps sind darin nicht zugesichert. Kostenlose Varianten enden auf :free." : "Lade die aktuellen Modelle mit deinem Zugang und wähle ein Textmodell. Die oberste ausgewählte Modell-ID wird zuerst probiert. Kontext und Ausgabe müssen vom Modell unterstützt werden.")
+                    Text(value.kind == .local ? "Für das iPhone zunächst ein kleines quantisiertes MLX-Modell verwenden, etwa mlx-community/Qwen3-1.7B-4bit. Das Modell muss vor dem ersten Chat ausdrücklich geladen werden." : value.kind == .aiHorde ? "Die automatische Auswahl nutzt aktuell passende NSFW-Chat-Rechner für Rollenspielmodelle, bevorzugt Mini-Magnum. Weitere gemeldete Chat-Modelle lassen sich auswählen. Charakterregeln werden bei fehlender Kapazität nicht still abgeschnitten; die Gratis-Ausgabelänge kann begrenzt sein." : value.kind == .openRouter ? "openrouter/free wechselt zwischen verfügbaren Gratis-Modellen. Bestimmte Modellfamilien und Premium-Abos anderer Apps sind darin nicht zugesichert. Kostenlose Varianten enden auf :free." : "Lade die aktuellen Modelle mit deinem Zugang und wähle ein Textmodell. Die oberste ausgewählte Modell-ID wird zuerst probiert. Kontext und Ausgabe müssen vom Modell unterstützt werden.")
                 }
                 Section("Verbindung prüfen") {
                     Button("Testantwort erzeugen", systemImage: "stethoscope") { Task { await testConnection() } }.disabled(loading)
@@ -285,6 +303,7 @@ struct ConnectionEditor: View {
         var seen = Set<String>()
         return modelText.split(whereSeparator: { $0 == "\n" || $0 == "," }).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty && seen.insert($0).inserted }
     }
+    private var contentPreview: Connection { var preview = value; preview.models = parsedModels; return preview }
     private func save() {
         do {
             if value.kind != .local { _ = try HTTP.requireHTTPS(value.baseURL) }

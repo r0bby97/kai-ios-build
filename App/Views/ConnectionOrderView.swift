@@ -15,6 +15,7 @@ struct ConnectionSettingsRow: View {
                         Text(connection.name).foregroundStyle(.primary)
                         Text(connection.models.isEmpty ? "Noch kein Modell ausgewählt" : connection.models.joined(separator: " → "))
                             .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        ProviderContentLabels(connection: connection)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("\(position). \(connection.name) bearbeiten")
@@ -45,6 +46,7 @@ struct ConnectionOrderView: View {
                                     .accessibilityIdentifier("priority-title-" + connection.id.uuidString)
                                 Text(connection.enabled ? "Wird bei Bedarf verwendet" : "Ausgeschaltet")
                                     .font(.caption).foregroundStyle(.secondary)
+                                ProviderContentButton(connection: connection)
                             }.frame(maxWidth: .infinity, alignment: .leading)
                             Toggle("\(connection.name) verwenden", isOn: $connection.enabled).labelsHidden()
                         }.padding(.vertical, 8)
@@ -52,7 +54,7 @@ struct ConnectionOrderView: View {
                         store.archive.connections.move(fromOffsets: source, toOffset: destination); store.save()
                     }
                 } footer: {
-                    Text("Ziehe die Griffe rechts. Die oberste aktive und eingerichtete Verbindung startet zuerst. Ausgeschaltete Verbindungen werden übersprungen. Änderungen gelten ab der nächsten Antwort.")
+                    Text("Ziehe die Griffe rechts. Die oberste aktive und eingerichtete Verbindung startet zuerst. Die Hinweise zu Erotik und fiktiver Gewalt sind Richtwerte; tippe darauf für Details. Ausgeschaltete Verbindungen werden übersprungen. Änderungen gelten ab der nächsten Antwort.")
                 }
             }.environment(\.editMode, .constant(.active))
                 .navigationTitle("KI-Rangfolge").navigationBarTitleDisplayMode(.inline)
