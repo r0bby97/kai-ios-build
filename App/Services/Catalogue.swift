@@ -1,13 +1,18 @@
 import Foundation
 import FadenCore
 
-struct CataloguePage {
-    var cards: [CharacterCard]
-    var hasMore: Bool
-    var totalCount: Int? = nil
-}
 enum Catalogue {
-    static func search(query: String, page: Int, includeAdult: Bool, genre: CharacterGenre = .all, source: CatalogueSource = .chub) async throws -> CataloguePage {
+    static func search(query: String, page: Int, includeAdult: Bool, genre: CharacterGenre = .all, source: CatalogueSource = .chub,
+                       positions: [CatalogueSource: CataloguePosition]? = nil,
+                       updated: @escaping @Sendable (CataloguePage) async -> Void = { _ in }) async throws -> CataloguePage {
+        let requested = positions ?? Dictionary(uniqueKeysWithValues: source.sources.map { ($0, CataloguePosition(page: page)) })
+        return try await CatalogueSearch.run(source: source, positions: requested, fetch: { current, position in
+            try await searchSingle(query: query, position: position, includeAdult: includeAdult, genre: genre, source: current)
+        }, updated: updated)
+    }
+    private static func searchSingle(query: String, position: CataloguePosition, includeAdult: Bool, genre: CharacterGenre, source: CatalogueSource) async throws -> CataloguePage {
+        if source == .cardex { return try await CardexCatalogueClient(session: CatalogueNetwork.publicDownloadSession).search(query: query, position: position, includeAdult: includeAdult, genre: genre) }
+        let page = position.page
         if source == .janny { return try await JannyCatalogue.search(query: query, page: page, includeAdult: includeAdult, genre: genre) }
         var url = URLComponents(string: "https://api.chub.ai/search")!
         // These genres have text matches in Chub but no matching topic tags.
@@ -38,6 +43,7 @@ enum Catalogue {
         return CataloguePage(cards: cards, hasMore: nodes.count == 24)
     }
     static func detail(_ card: CharacterCard) async throws -> CharacterCard {
+        if CatalogueSource.source(for: card.id) == .cardex { return try await CardexCatalogueClient(session: CatalogueNetwork.publicDownloadSession).detail(card) }
         if CatalogueSource.source(for: card.id) == .janny { return try await JannyCatalogue.detail(card) }
         guard card.id.hasPrefix("chub/") else { return card }
         let path = String(card.id.dropFirst(5))

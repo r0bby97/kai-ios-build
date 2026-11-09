@@ -245,6 +245,24 @@ import XCTest
         let preview = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Scroll-Test Nachricht 90.")).firstMatch
         XCTAssertTrue(preview.waitForExistence(timeout: 5), "Scrolling must keep the latest story head intact")
     }
+    func testAllSourcesAndCardexAreSelectable() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = offlineArguments() + ["-catalogueSource", "all", "-KaiUIHoldTranslations"]
+        app.launch()
+        app.buttons["Online entdecken"].tap()
+        let sources = app.segmentedControls["catalogue-source"]
+        XCTAssertTrue(sources.waitForExistence(timeout: 5))
+        XCTAssertTrue(sources.buttons["Alle"].isSelected)
+        XCTAssertTrue(sources.buttons["Chub"].exists)
+        XCTAssertTrue(sources.buttons["JannyAI"].exists)
+        sources.buttons["Cardex"].tap()
+        app.buttons["Omegaverse"].tap()
+        let card = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "character-row-cardex/")).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 30), "Cardex previews must appear without waiting for translation")
+        XCTAssertTrue(sources.buttons["Cardex"].isSelected)
+        attach(app, name: "Cardex-Omegaverse")
+    }
     func testJannySearchOffersTheOmegaverseGenre() {
         continueAfterFailure = false
         let app = XCUIApplication(); app.launchArguments = offlineArguments(); app.launch()

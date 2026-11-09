@@ -15,11 +15,13 @@ struct LibraryView: View {
     @State private var loading = false
     @State private var catalogueError: String?
     @State private var totalHits: Int?
+    @State private var cataloguePositions: [CatalogueSource: CataloguePosition]?
+    @State private var catalogueNotices: [CatalogueNotice] = []
     @State private var loadID = UUID()
     @State private var previewTranslationTask: Task<Void, Never>?
     @State private var preparationSheet = false
     @State private var languageSetup = false
-    @AppStorage("catalogueSource") private var catalogueSourceRaw = CatalogueSource.chub.rawValue
+    @AppStorage("catalogueSource") private var catalogueSourceRaw = CatalogueSource.all.rawValue
     @AppStorage("includeAdultCatalogue") private var includeAdult = true
     @State private var selected: CharacterCard?
     @State private var importing = false
@@ -29,7 +31,7 @@ struct LibraryView: View {
     @State private var showingFilters = false
     @Namespace private var genreSelection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var catalogueSource: CatalogueSource { CatalogueSource(rawValue: catalogueSourceRaw) ?? .chub }
+    private var catalogueSource: CatalogueSource { CatalogueSource(rawValue: catalogueSourceRaw) ?? .all }
     private var jannyBrowserURL: URL {
         var components = URLComponents(string: "https://jannyai.com/characters/search")!
         components.queryItems = [.init(name: "search", value: JannyCatalogueCodec.query(query, genre: genre))]
@@ -71,6 +73,15 @@ struct LibraryView: View {
                         }
                     }
                     if source == 1 { catalogueSummary }
+                    if source == 1, !catalogueNotices.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(catalogueNotices, id: \.source) { notice in
+                                Label("\(notice.source.title): \(notice.message)", systemImage: "exclamationmark.circle")
+                            }
+                            Text("Treffer der übrigen Quellen bleiben verfügbar.")
+                            Button("Fehlende Quellen erneut versuchen") { Task { await load(reset: false, retryFailuresOnly: true) } }.disabled(loading)
+                        }.font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("catalogue-source-notices")
+                    }
                     if let catalogueError, source == 1 {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(catalogueError).font(.subheadline).foregroundStyle(.secondary)
@@ -96,7 +107,7 @@ struct LibraryView: View {
                     }
                     if source == 1 {
                         DisclosureGroup("Hinweise zur Quelle") {
-                            Text(catalogueSource == .chub ? "Genres werden direkt im Katalog gesucht. Kartentyp und Favoriten filtern die geladenen Treffer; weitere Ergebnisse kannst du nachladen." : "JannyAI ergänzt den Janitor-Katalog. Die Quelle liefert Suchrelevanz statt verlässlicher Beliebtheitszahlen. Vollständige Definitionen kommen aus freigegebenen Kartendownloads. Bei Zugriffssperren kannst du den regulären Website-Download im Browser verwenden. Kartentyp und Favoriten filtern die geladenen Treffer.")
+                            Text(catalogueSource.discoveryNote + " Kartentyp und Favoriten filtern die geladenen Treffer.")
                                 .font(.caption).foregroundStyle(.secondary)
                             if catalogueSource == .janny { Button("JannyAI im Browser öffnen") { catalogueBrowser = true } }
                         }.font(.subheadline)
@@ -146,7 +157,7 @@ struct LibraryView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Entdecken").font(.system(.title, weight: .bold))
-                Text(source == 0 ? "\(store.libraryCharacters.count) Charaktere in deiner Bibliothek" : "Charaktere aus \(catalogueSource.title)")
+                Text(source == 0 ? "\(store.libraryCharacters.count) Charaktere in deiner Bibliothek" : catalogueSource == .all ? "Cardex · Chub · JannyAI" : "Charaktere aus \(catalogueSource.title)")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -202,9 +213,9 @@ struct LibraryView: View {
                 Text("Viele Omegaverse-Karten sind als Inhalte für Erwachsene markiert und derzeit ausgeblendet.").font(.caption).foregroundStyle(.secondary)
             }
             HStack {
-                Text(catalogueSource == .chub ? "Nach Beliebtheit" : "Nach Suchrelevanz")
+                Text(catalogueSource.sortDescription(query: query))
                 Spacer()
-                if let totalHits { Text("\(totalHits.formatted(.number.locale(Locale(identifier: "de_DE")))) Treffer im Katalog") }
+                if let totalHits, catalogueSource != .all { Text("\(totalHits.formatted(.number.locale(Locale(identifier: "de_DE")))) Treffer im Katalog") }
             }.font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -234,41 +245,71 @@ struct LibraryView: View {
                 }
             }
     }
-    private func load(reset: Bool) async {
+    private func load(reset: Bool, retryFailuresOnly: Bool = false) async {
         if loading && !reset { return }
         let requestedQuery = query; let requestedAdult = includeAdult; let requestedGenre = genre; let requestedSource = catalogueSource
         let requestID = UUID(); loadID = requestID
-        previewTranslationTask?.cancel()
+        previewTranslationTask?.cancel(); previewTranslationTask = nil
         loading = true; catalogueError = nil
-        if reset { online = []; hasMore = false; totalHits = nil }
+        let previousCards = reset ? [] : online
+        let previousPositions = reset ? nil : cataloguePositions
+        let failedSources = Set(catalogueNotices.map(\.source))
+        let positions = retryFailuresOnly ? previousPositions?.filter { failedSources.contains($0.key) } : previousPositions
+        if reset { online = []; hasMore = false; totalHits = nil; cataloguePositions = nil; catalogueNotices = [] }
         defer { if loadID == requestID { loading = false } }
         let nextPage = reset ? 1 : page + 1
         do {
-            let result = try await Catalogue.search(query: requestedQuery, page: nextPage, includeAdult: requestedAdult, genre: requestedGenre, source: requestedSource)
+            let result = try await Catalogue.search(query: requestedQuery, page: nextPage, includeAdult: requestedAdult, genre: requestedGenre, source: requestedSource, positions: positions, updated: { partial in
+                await MainActor.run {
+                    guard loadID == requestID, source == 1, query == requestedQuery, includeAdult == requestedAdult,
+                          genre == requestedGenre, catalogueSource == requestedSource else { return }
+                    let previews = cataloguePreviews(partial.cards)
+                    let ids = Set(previousCards.map(\.id))
+                    online = cataloguePreviews(previousCards) + previews.filter { !ids.contains($0.id) }
+                    catalogueNotices = partial.notices
+                    translatePreviews(requestID: requestID)
+                }
+            })
             try Task.checkCancellation()
             guard loadID == requestID, query == requestedQuery, includeAdult == requestedAdult, genre == requestedGenre, catalogueSource == requestedSource else { return }
-            let previews = result.cards.map { original -> CharacterCard in
-                if let cached = store.character(original.id), cached.hasDefinition { return cached }
-                var card = original
-                if card.languageCode != "de" { card.languageCode = "pending" }
-                return card
-            }
-            if reset { online = previews } else {
-                let ids = Set(online.map(\.id)); online += previews.filter { !ids.contains($0.id) }
-            }
-            // Search returns immediately; translation never holds the result page hostage.
-            previewTranslationTask = Task {
-                for card in previews where card.languageCode != "de" {
-                    if Task.isCancelled || loadID != requestID { return }
-                    do {
-                        let translated = try await store.translator.germanize(card)
-                        guard !Task.isCancelled, loadID == requestID else { return }
-                        if let index = online.firstIndex(where: { $0.id == card.id }) { online[index] = translated }
-                    } catch is CancellationError { return } catch { }
-                }
-            }
-            hasMore = result.hasMore; page = nextPage; totalHits = result.totalCount
+            let previews = cataloguePreviews(result.cards)
+            let ids = Set(previousCards.map(\.id)); online = cataloguePreviews(previousCards) + previews.filter { !ids.contains($0.id) }
+            translatePreviews(requestID: requestID)
+            if retryFailuresOnly {
+                var combined = previousPositions ?? [:]
+                for current in failedSources { combined[current] = result.continuations[current] }
+                cataloguePositions = combined
+            } else { cataloguePositions = result.continuations }
+            catalogueNotices = result.notices
+            hasMore = !(cataloguePositions?.isEmpty ?? true); page = nextPage
+            if !retryFailuresOnly { totalHits = result.totalCount }
         } catch is CancellationError {} catch { if loadID == requestID { catalogueError = error.localizedDescription } }
+    }
+    private func cataloguePreviews(_ cards: [CharacterCard]) -> [CharacterCard] {
+        cards.map { original in
+            if let cached = store.character(original.id), cached.hasDefinition { return cached }
+            if let translated = online.first(where: { $0.id == original.id && $0.languageCode == "de" }) { return translated }
+            var card = original
+            if card.languageCode != "de" { card.languageCode = "pending" }
+            return card
+        }
+    }
+    private func translatePreviews(requestID: UUID) {
+        guard previewTranslationTask == nil else { return }
+        previewTranslationTask = Task {
+            defer { if loadID == requestID { previewTranslationTask = nil } }
+            var attempted = Set<String>()
+            // New source results join the queue while translation is running.
+            while !Task.isCancelled, loadID == requestID,
+                  let card = online.first(where: { $0.languageCode != "de" && !attempted.contains($0.id) }) {
+                attempted.insert(card.id)
+                do {
+                    let translated = try await store.translator.germanize(card)
+                    guard !Task.isCancelled, loadID == requestID else { return }
+                    if let index = online.firstIndex(where: { $0.id == card.id }) { online[index] = translated }
+                } catch is CancellationError { return } catch { }
+            }
+        }
     }
 }
 
@@ -314,6 +355,7 @@ private struct CharacterDiscoveryRow: View {
                     if card.cast.isEnsemble { Image(systemName: "person.2.fill").font(.caption).accessibilityLabel("Gruppenkarte") }
                 }
                 if card.languageCode == "pending" { Text(card.hasDefinition ? "Originaltext · Deutsch folgt" : "Vorschau · Definition noch nicht geladen").font(.caption2).foregroundStyle(.secondary) }
+                if let source = CatalogueSource.source(for: card.id) { Text(source.title).font(.caption2.weight(.medium)).foregroundStyle(.secondary) }
                 if !card.displayTagline.isEmpty { Text(card.displayTagline).font(.subheadline).lineLimit(2) }
                 if summary != card.displayTagline { Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? 4 : 3) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 3)
@@ -335,7 +377,6 @@ struct CharacterDetail: View {
     @State private var translationNotice: String?
     @State private var translationScope = UUID().uuidString
     @State private var sourceBrowser = false
-    @State private var automaticBrowserAttempted = false
     @State private var needsTranslationSetup = false
     @State private var languageSetup = false
     private var previousStory: Story? {
@@ -438,9 +479,6 @@ struct CharacterDetail: View {
             do { card = try await Catalogue.detail(card) }
             catch {
                 failure = error.localizedDescription; loading = false
-                if CatalogueSource.source(for: card.id) == .janny, !(error is CancellationError), !automaticBrowserAttempted {
-                    automaticBrowserAttempted = true; sourceBrowser = true
-                }
                 return
             }
             loading = false

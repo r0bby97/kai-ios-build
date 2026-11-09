@@ -123,7 +123,7 @@ struct SettingsView: View {
                 }
                 Section("Über Kai") {
                     LabeledContent("Version", value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"))")
-                    Text("Originalkarten aus Chub und JannyAI · Offline-Bibliothek · private Gesprächszweige")
+                    Text("Originalkarten aus Cardex, Chub und JannyAI · Offline-Bibliothek · private Gesprächszweige")
                         .font(.subheadline).foregroundStyle(.secondary)
                     Link("Unslop · Designleitfaden von Damir Sokolovsky", destination: URL(string: "https://github.com/heydamir/unslop")!).font(.caption)
                     Link("Quellcode", destination: URL(string: "https://github.com/r0bby97/kai-ios-build")!)

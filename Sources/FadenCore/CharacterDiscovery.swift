@@ -64,9 +64,29 @@ public enum OmegaverseSearch {
 }
 
 public enum CatalogueSource: String, CaseIterable, Sendable {
-    case chub, janny
-    public var title: String { self == .chub ? "Chub" : "JannyAI" }
+    case all, cardex, chub, janny
+    public var title: String {
+        switch self { case .all: "Alle"; case .cardex: "Cardex"; case .chub: "Chub"; case .janny: "JannyAI" }
+    }
+    public var sources: [CatalogueSource] { self == .all ? [.cardex, .chub, .janny] : [self] }
+    public func sortDescription(query: String) -> String {
+        switch self {
+        case .all: "Gemischte Quellen · Rangfolge je Quelle"
+        case .cardex: query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Nach Beliebtheit" : "Nach Suchrelevanz"
+        case .chub: "Nach Beliebtheit"
+        case .janny: "Nach Suchrelevanz"
+        }
+    }
+    public var discoveryNote: String {
+        switch self {
+        case .all: "Karten aus Cardex, Chub und JannyAI. Treffer erscheinen, sobald eine Quelle antwortet. Eine ausgefallene Quelle hält die anderen nicht auf. Beliebtheitszahlen verschiedener Quellen sind nicht direkt vergleichbar."
+        case .cardex: "Archivierte Originalkarten mit direktem Import von Definition und Kartenbild. Ältere Archivbilder können verkleinert sein. Nicht jede Karte ist vollständig erhalten."
+        case .chub: "Genres werden direkt im Katalog gesucht. Weitere Treffer lassen sich nachladen."
+        case .janny: "JannyAI liefert Suchvorschauen. Der direkte Kartendownload kann an Website-Prüfungen scheitern; Cardex und Chub bieten weitere Karten zum direkten Import."
+        }
+    }
     public static func source(for id: String) -> CatalogueSource? {
+        if id.hasPrefix("cardex/"), CardexCatalogueCodec.validSlug(String(id.dropFirst(7))) { return .cardex }
         if id.hasPrefix("chub/") { return .chub }
         if id.hasPrefix("janny/"), UUID(uuidString: String(id.dropFirst(6))) != nil { return .janny }
         return nil

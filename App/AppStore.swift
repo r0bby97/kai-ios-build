@@ -20,6 +20,8 @@ struct StoryRoute: Identifiable { var id: UUID }
     var catalogueTranslationStatus: String?
     private var catalogueTask: Task<Void, Never>?
     private var catalogueTranslationTask: Task<Void, Never>?
+    private var importedArtworkTask: Task<Void, Never>?
+    private var importedArtworkQueue = Set<String>()
     private var lastCatalogueSave = Date.distantPast
     var libraryCharacters: [CharacterCard] {
         #if DEBUG || KAI_TESTING
@@ -138,6 +140,7 @@ struct StoryRoute: Identifiable { var id: UUID }
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil,
            !ProcessInfo.processInfo.arguments.contains("-FadenUITestStore") { return }
         #endif
+        for card in archive.libraryCharacters where CatalogueSource.source(for: card.id) == .cardex { cacheImportedArtwork(card) }
         let saved = UserDefaults.standard.integer(forKey: "cataloguePrepareCount")
         startCataloguePreparation(count: [24, 60, 120].contains(saved) ? saved : 60, force: force)
     }
@@ -254,6 +257,30 @@ struct StoryRoute: Identifiable { var id: UUID }
             archive.stories[index].cardCasts?[card.id] = card.cast
         }
         save()
+        cacheImportedArtwork(card)
+    }
+    private func cacheImportedArtwork(_ card: CharacterCard) {
+        guard CatalogueSource.source(for: card.id) == .cardex, card.hasDefinition, card.avatarURL != nil else { return }
+        if let cached = card.cachedAvatarURL.flatMap(URL.init(string:)), cached.isFileURL,
+           FileManager.default.fileExists(atPath: cached.path) { return }
+        importedArtworkQueue.insert(card.id)
+        guard importedArtworkTask == nil else { return }
+        importedArtworkTask = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            defer { self.importedArtworkTask = nil }
+            while !Task.isCancelled, let id = self.importedArtworkQueue.popFirst() {
+                guard let original = self.character(id) else { continue }
+                do {
+                    try await self.waitForCatalogueWork()
+                    let prepared = try await CatalogueNetwork.prepare(original, directory: self.directory.appendingPathComponent("OriginalArtwork", isDirectory: true))
+                    guard let image = prepared.cachedAvatarURL,
+                          let index = self.archive.characters.firstIndex(where: { $0.id == id }),
+                          self.archive.characters[index].avatarURL == prepared.avatarURL else { continue }
+                    // Preserve edits and translations that finished during the image download.
+                    self.archive.characters[index].cachedAvatarURL = image; self.save()
+                } catch is CancellationError { break } catch { }
+            }
+        }
     }
     func start(_ character: CharacterCard) {
         start(characters: [character], persona: nil, scene: nil, greeting: nil)

@@ -1,6 +1,6 @@
 # Kai – Abgleich der vereinbarten Anforderungen
 
-Stand: 8. November 2026. „Implementiert“ beschreibt den Quellcode, nicht die erfolgreiche Abnahme mit den Konten und dem iPhone des Nutzers. Die App ist noch nicht als vollständig abgenommen freigegeben.
+Stand: 9. November 2026. „Implementiert“ beschreibt den Quellcode, nicht die erfolgreiche Abnahme mit den Konten und dem iPhone des Nutzers. Die App ist noch nicht als vollständig abgenommen freigegeben.
 
 | Anforderung | Tatsächlicher Stand |
 | --- | --- |
@@ -10,7 +10,9 @@ Stand: 8. November 2026. „Implementiert“ beschreibt den Quellcode, nicht die
 | Öffentliche Karten schon beim Start | Chub-Vorschauen werden automatisch nach Beliebtheit geladen; 24/60/120 Karten können vorbereitet werden, Standard 60. Keine erfundenen Beispielkarten in der normalen Entdecken-Ansicht. |
 | Originalbilder und kartenabhängiger Chat-Hintergrund | Implementiert; Bilder werden unabhängig vom Text nachgeladen und lokal zwischengespeichert. |
 | Aussagekräftige Karten im Menü | Name, Kurzbeschreibung, Tags, Bild und Quelle werden dargestellt. Janny-Export soll diese Angaben erhalten, wenn sie in der PNG fehlen; dafür ist ein neuer vollständiger Transporttest vorgesehen. |
-| JannyAI vollständig automatisch importieren | **Offener Abnahmeblocker.** Direkter Export plus automatischer regulärer Browser-Download implementiert. Live-Suche funktioniert; drei geprüfte Exporte und eine Originalseite werden vom Arbeitsrechner mit HTTP 403 / Cloudflare challenge gesperrt. Keine erfolgreiche Live-Abnahme behauptet. |
+| JannyAI vollständig automatisch importieren | **Weiterhin nicht erfolgreich abgenommen.** Öffentliche Suche funktioniert, direkte Downloads scheiterten an HTTP 403 / Cloudflare challenge. Keine automatische Browseröffnung mehr bei einem fehlgeschlagenen Import; der reguläre Browserexport bleibt optional. |
+| Cardex als weitere Datenbank | Implementiert. Echte Live-Suche für Omegaverse, Guideverse und BDSM, Nachladen sowie vollständiger JSON-Import mit zugehörigem Kartenbild lokal geprüft. Speicherung des Bildes im Hintergrund implementiert. Native iPhone-Abnahme ausstehend. |
+| Alle Quellen unter Online entdecken | Implementiert: Alle, Cardex, Chub, JannyAI. Treffer erscheinen je Quelle unabhängig; Fehler und Seitenstände bleiben getrennt. Gemeinsame Live-Suche über den App-Suchdienst und lokale Kernlogiktests bestanden; neuer iOS-Bedientest noch nicht ausgeführt. |
 | Eigener PNG-/JSON-Import und Karteneditor | Implementiert. |
 | Deutsch, keine Sortierung oder Sperre nach Ausgangssprache | Deutsche Oberfläche und Antwortvorgabe. Apple übersetzt die Kartendefinition einschließlich Begrüßungen; Sprachpakete werden ausdrücklich eingerichtet. Tatsächliche Übersetzung mit installierten Paketen noch auf einem iPhone zu prüfen. |
 | Beliebtheit statt ausschließlich deutsche Karten | Chub nach Beliebtheit, unabhängig von der Ausgangssprache. JannyAI liefert Suchrelevanz und keine verlässlichen Beliebtheitswerte; eine beliebtheitsbasierte Reihenfolge ist dort nicht zugesichert. |
@@ -41,6 +43,6 @@ Stand: 8. November 2026. „Implementiert“ beschreibt den Quellcode, nicht die
 
 Die installierte Version 1.5 verwendete für Download-URLs die Prüfung einer API-Basisadresse (`HTTP.requireHTTPS`) und eine Sitzung ohne Weiterleitungen. Das konnte signierte URLs mit Parametern und reguläre CDN-Weiterleitungen ablehnen. Der neue Code trennt diese Dateidownloads von authentifizierten API-Verbindungen. PNG-Metadaten liefern die echte Chatdefinition; Suchtexte werden nicht als Persönlichkeit ausgegeben. Eine Website-Verifikation, ein nicht archivierter Treffer und ein ungültiger Export erhalten unterschiedliche Fehler.
 
-Die Browserstrecke verwendet die normalen öffentlichen Download-Steuerelemente und übernimmt die fertige PNG-/JSON-Datei automatisch. Es werden keine fremden Sitzungstokens ausgelesen, keine Prüfungen gelöst und keine verborgenen Definitionen rekonstruiert. Solange keine vollständige Live-Karte erfolgreich importiert wurde, bleibt die Anforderung offen.
+Die optional manuell geöffnete Browserstrecke verwendet die normalen öffentlichen Download-Steuerelemente und übernimmt die fertige PNG-/JSON-Datei automatisch. Es werden keine fremden Sitzungstokens ausgelesen, keine Prüfungen gelöst und keine verborgenen Definitionen rekonstruiert. Solange keine vollständige Live-Karte erfolgreich importiert wurde, bleibt die Anforderung offen.
 
 Die geprüften Anbieterregeln sind in [ProviderContentRules.md](ProviderContentRules.md) getrennt nach Erotik und Gewalt dokumentiert.

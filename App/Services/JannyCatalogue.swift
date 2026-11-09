@@ -5,10 +5,10 @@ enum CatalogueDownloadFailure: LocalizedError {
     case verification, unavailable(Int), notArchived, invalidExport
     var errorDescription: String? {
         switch self {
-        case .verification: "JannyAI verlangt eine Website-Prüfung (HTTP 403). Kai versucht den regulären Kartendownload im eingebauten Browser."
+        case .verification: "JannyAI verlangt eine Website-Prüfung (HTTP 403). Der direkte Import ist gerade nicht möglich. Cardex und Chub bieten weitere Karten zum direkten Import."
         case .unavailable(let code): "JannyAI konnte diese Karte nicht liefern (HTTP \(code))."
         case .notArchived: "JannyAI findet für diesen Suchtreffer noch keine vollständige archivierte Karte. Der Suchtext allein enthält keine Chatdefinition."
-        case .invalidExport: "JannyAI hat keinen gültigen Kartendownload geliefert. Kai versucht den regulären Export auf der Originalseite."
+        case .invalidExport: "JannyAI hat keinen gültigen Kartendownload geliefert. Es wurde keine leere Karte importiert."
         }
     }
 }

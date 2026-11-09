@@ -28,10 +28,12 @@ Kai is a private place to continue character-driven stories. Its interface combi
 
 Design guidance: [Unslop](https://github.com/heydamir/unslop), by Damir Sokolovsky, CC BY 4.0. Native accessibility, Dynamic Type, and iOS touch targets take precedence over desktop-oriented measurements in that guide.
 
-Omegaverse discovery includes genre aliases and a second public source, JannyAI. Chub uses popularity order and JannyAI uses source relevance order. Public card-download restrictions are surfaced honestly, with an integrated normal website download path. Scroll arrows navigate long conversations without changing branches. Word-based response settings are backed by a whole-word streaming cap.
+Online discovery includes Cardex, Chub and JannyAI, plus an All selection with independent source pagination and partial results. Cardex supports direct public card exports and original archived artwork, including Omegaverse, Guideverse and BDSM searches. Each result names its source. Chub and Cardex genre browsing use popularity order; Cardex keyword search and JannyAI use source relevance. Public card-download restrictions are surfaced honestly. A failed JannyAI import does not open a browser automatically. See [Cardex validation](Docs/Validation-Cardex.md) for live checks and pending native tests. Scroll arrows navigate long conversations without changing branches. Word-based response settings are backed by a whole-word streaming cap.
 
 
 Occasional character insights add private thoughts or memories as branch-aware side records rather than dialogue. They can be disabled or spaced around 10/20 completed replies; optional requests reuse the last successful provider and never escalate to another account. Provider priorities have a native drag interface and direct enable switches to reserve ChatGPT for occasional use.
 
 
 Named API presets cover OpenAI, Claude, Gemini, Grok and DeepSeek, alongside ChatGPT plan sharing, OpenRouter and local MLX. Presets use official endpoints, current authenticated model lists and explicit API billing controls. Chat subscriptions and API access are kept distinct.
+
+Research into free adult-roleplay inference is documented in [FreeRoleplayModels.md](Docs/FreeRoleplayModels.md). AI Horde is a researched candidate, not an implemented provider.
