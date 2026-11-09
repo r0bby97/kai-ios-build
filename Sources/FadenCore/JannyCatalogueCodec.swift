@@ -28,7 +28,7 @@ public enum JannyCatalogueCodec {
             }
             return CharacterCard(id: "janny/" + id.lowercased(), name: plainText(name), tagline: String(blurb.prefix(220)),
                 creatorNotes: blurb, tags: tags, avatarURL: avatar,
-                sourceURL: "https://jannyai.com/characters/" + id, creator: "JannyAI-Katalog", isAdult: hit["isNsfw"] as? Bool ?? false)
+                sourceURL: JannyWebsite.cardURL(id: id, name: plainText(name))?.absoluteString, creator: "JannyAI-Katalog", isAdult: hit["isNsfw"] as? Bool ?? false)
         }
         let total = max(0, result["totalHits"] as? Int ?? result["estimatedTotalHits"] as? Int ?? cards.count)
         let page = result["page"] as? Int ?? 1

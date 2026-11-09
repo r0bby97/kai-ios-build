@@ -300,12 +300,12 @@ struct StoryRoute: Identifiable { var id: UUID }
             var card = try CardCodec.decode(Data(contentsOf: url), filename: url.lastPathComponent)
             if let origin {
                 guard !card.description.isEmpty || !card.personality.isEmpty else { throw FadenError.invalidData("Die heruntergeladene Karte enthält keine freigegebene Definition.") }
-                card.id = origin.id; card.sourceURL = origin.sourceURL; card.isAdult = origin.isAdult
+                card = JannyWebsite.merging(card, with: origin)
             }
             if url.pathExtension.lowercased() == "png" {
                 let imageURL = directory.appendingPathComponent("\(UUID().uuidString).png")
                 try Data(contentsOf: url).write(to: imageURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-                card.avatarURL = imageURL.absoluteString
+                card.cachedAvatarURL = imageURL.absoluteString
             }
             let imported = card
             Task {

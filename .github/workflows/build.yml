@@ -1,8 +1,12 @@
 name: Build Kai IPA
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Prüfungen vor dem einmaligen IPA-Build
+        type: choice
+        default: all
+        options: [all, janny-import]
 permissions:
   contents: write
 concurrency:
@@ -10,6 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event.repository.private == false
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -26,23 +31,23 @@ jobs:
         run: brew install xcodegen
       - name: Generate Xcode project
         run: xcodegen generate
+      - name: Test optimized iPhone simulator application
+        env:
+          KAI_TEST_SCOPE: ${{ inputs.scope }}
+        run: |
+          set -o pipefail
+          task_simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for group in json.load(sys.stdin)["devices"].values() for d in group if d["isAvailable"] and d["name"].startswith("iPhone")]; print(next((d["udid"] for d in ds if d["name"]=="iPhone 17"),ds[0]["udid"]))')
+          task_test_args=()
+          if [ "$KAI_TEST_SCOPE" = "janny-import" ]; then
+            task_test_args=(-only-testing:FadenServiceTests/CatalogueImportTests -only-testing:FadenUITests/StartupTests/testJannySearchOffersTheOmegaverseGenre)
+          fi
+          xcodebuild test "${task_test_args[@]}" -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES KAI_TEST_FLAGS=KAI_TESTING ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
       - name: Build iPhone application
         run: |
           set -o pipefail
           xcodebuild -quiet -project Faden.xcodeproj -scheme Faden -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build CURRENT_PROJECT_VERSION="$((1000 + GITHUB_RUN_NUMBER))" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' -skipPackagePluginValidation -skipMacroValidation build | tee build.log
-      - name: Test optimized iPhone simulator application
-        run: |
-          set -o pipefail
-          task_simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; ds=[d for group in json.load(sys.stdin)["devices"].values() for d in group if d["isAvailable"] and d["name"].startswith("iPhone")]; print(next((d["udid"] for d in ds if d["name"]=="iPhone 17"),ds[0]["udid"]))')
-          xcodebuild test -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES KAI_TEST_FLAGS=KAI_TESTING CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
       - name: Package SideStore IPA
         run: bash scripts/package-ipa.sh
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kai-IPA
-          path: build/Kai.ipa
-          retention-days: 30
       - name: Create IPA download
         env:
           GH_TOKEN: ${{ github.token }}

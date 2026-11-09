@@ -1,5 +1,9 @@
 Kai 1.6.0 – Prüfbuild
 
+Aktuelle Janny-Korrekturen: Originalseiten verwenden vollständige Kartenadressen; bestehende Quelllinks bleiben bei Übersetzung erhalten. Browser- und API-Import verwenden dieselbe Zusammenführung von Kartendefinition und Katalogangaben. PNG-Originalbilder werden direkt gespeichert, die ursprüngliche Bildadresse bleibt erhalten. Karten-ID und Quelle bleiben auch nach Blob-/CDN-Downloads zugeordnet. Browser-Prüfungen zeigen einen Status und können im eingebauten Browser erneut geladen werden.
+
+Builds starten ausschließlich manuell im öffentlichen Repository; private Jobs sind gesperrt. Der Simulator prüft zuerst die Änderung, danach wird die IPA einmalig erstellt. Für die Janny-Korrektur gibt es einen gezielten Testumfang. Der Gerätebuild und bestehende Anbietertests aus Build 1006 ersetzen keine erfolgreiche Live-Abnahme von JannyAI.
+
 Noch keine vollständige Abnahme: Der Live-Import von JannyAI ist durch Website-Prüfungen vom Arbeitsrechner aus blockiert. Echte KI-Konten und lokale MLX-Generierung auf dem iPhone sind nach den Korrekturen noch zu bestätigen. Der vollständige Anforderungsabgleich steht in Docs/Requirements.md.
 
 - Generierung wird anhand des tatsächlich gespeicherten Nachrichtentexts und eines separaten Backend-Ergebnisses geprüft. Die gemeinsame pauschale Fehlermeldung wurde entfernt. Ein Callback-Verlust kann aus derselben empfangenen Antwort wiederhergestellt werden, ohne eine zweite Anfrage zu senden.

@@ -18,6 +18,27 @@ public enum JannyWebsite {
         guard suffix.isEmpty || (suffix.first == "_" && !suffix.contains("/")) else { return nil }
         return id.uuidString.lowercased()
     }
+    public static func sourceURL(for card: CharacterCard) -> URL? {
+        guard CatalogueSource.source(for: card.id) == .janny else { return nil }
+        let id = String(card.id.dropFirst(6)).lowercased()
+        if let text = card.sourceURL, let url = URL(string: text), cardID(in: url) == id, url.path.contains("_") { return url }
+        return cardURL(id: id, name: card.name)
+    }
+    public static func merging(_ downloaded: CharacterCard, with preview: CharacterCard) -> CharacterCard {
+        var card = downloaded
+        guard CatalogueSource.source(for: preview.id) == .janny else { return card }
+        card.id = preview.id
+        card.sourceURL = sourceURL(for: preview)?.absoluteString
+        if card.tagline.isEmpty { card.tagline = preview.tagline }
+        if card.creatorNotes.isEmpty { card.creatorNotes = preview.creatorNotes }
+        var seen = Set(card.tags.map { $0.lowercased() })
+        card.tags += preview.tags.filter { seen.insert($0.lowercased()).inserted }
+        card.avatarURL = preview.avatarURL ?? card.avatarURL
+        card.cachedAvatarURL = preview.cachedAvatarURL ?? card.cachedAvatarURL
+        card.castOverride = preview.castOverride ?? card.castOverride
+        card.isAdult = preview.isAdult || card.isAdult
+        return card
+    }
     // Operates on visible public download controls only. It never inspects
     // serialized definitions, cookies, verification frames or account tokens.
     public static let exportScript = """

@@ -18,10 +18,21 @@ enum CatalogueNetwork {
         configuration.httpCookieStorage = nil
         return URLSession(configuration: configuration)
     }()
+    static func cacheOriginalCard(_ data: Data) -> URL? {
+        guard data.count <= CardCodec.maximumBytes,
+              let image = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(image) > 0 else { return nil }
+        do {
+            let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("KaiOriginalCards", isDirectory: true)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let file = folder.appendingPathComponent(UUID().uuidString + ".png")
+            try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            return file
+        } catch { return nil }
+    }
     static func prepare(_ original: CharacterCard, directory: URL, downloadSession: URLSession = publicDownloadSession) async throws -> CharacterCard {
         var card = original.hasDefinition ? original : try await Catalogue.detail(original)
         card.avatarURL = card.avatarURL ?? original.avatarURL
-        card.cachedAvatarURL = original.cachedAvatarURL
+        card.cachedAvatarURL = original.cachedAvatarURL ?? card.cachedAvatarURL
         if !original.hasDefinition { card.languageCode = "pending" }
         if let cached = card.cachedAvatarURL, let file = URL(string: cached), file.isFileURL,
            FileManager.default.fileExists(atPath: file.path) { return card }

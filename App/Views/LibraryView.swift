@@ -417,10 +417,10 @@ struct CharacterDetail: View {
                 }
                 .sheet(isPresented: $editing) { CharacterEditor(original: card) { card = $0 }.environment(store) }
                 .sheet(isPresented: $sourceBrowser) {
-                    if let text = card.sourceURL, let url = URL(string: text) {
+                    if let url = JannyWebsite.sourceURL(for: card) {
                         CatalogueBrowser(url: url, automaticCardID: String(card.id.dropFirst(6))) { file, page in
                             let expectedID = String(card.id.dropFirst(6))
-                            let sameCard = page?.host == "jannyai.com" && page?.path.contains(expectedID) == true
+                            let sameCard = page.flatMap { JannyWebsite.cardID(in: $0) } == expectedID.lowercased()
                             store.importFile(file, origin: sameCard ? card : nil) { imported in
                                 card = imported; failure = nil
                             }

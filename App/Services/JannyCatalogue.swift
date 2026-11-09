@@ -53,13 +53,8 @@ enum JannyCatalogue {
         guard (downloadResponse as? HTTPURLResponse)?.statusCode == 200 else { throw downloadUnavailable }
         var full = try CardCodec.decode(png)
         guard !full.description.isEmpty || !full.personality.isEmpty else { throw downloadUnavailable }
-        full.id = card.id; full.sourceURL = card.sourceURL; full.avatarURL = card.avatarURL ?? full.avatarURL
-        full.cachedAvatarURL = card.cachedAvatarURL
-        if full.tagline.isEmpty { full.tagline = card.tagline }
-        if full.creatorNotes.isEmpty { full.creatorNotes = card.creatorNotes }
-        var seenTags = Set(full.tags.map { $0.lowercased() })
-        full.tags += card.tags.filter { seenTags.insert($0.lowercased()).inserted }
-        full.isAdult = card.isAdult; full.castOverride = card.castOverride
+        full = JannyWebsite.merging(full, with: card)
+        if let cached = CatalogueNetwork.cacheOriginalCard(png) { full.cachedAvatarURL = cached.absoluteString }
         return full
     }
     private static var downloadUnavailable: CatalogueDownloadFailure { .invalidExport }

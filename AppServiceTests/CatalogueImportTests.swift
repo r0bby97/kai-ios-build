@@ -12,7 +12,7 @@ import FadenCore
         return URLSession(configuration: config)
     }
     private func preview(_ suffix: String = "1") -> CharacterCard {
-        CharacterCard(id: "janny/00000000-0000-4000-8000-00000000000" + suffix, name: "Archiv-Test", tagline: "Eine Ermittlerin am Bahnhof", creatorNotes: "Öffentliche Beschreibung aus dem Katalog", tags: ["Detective", "Mystery"], avatarURL: "https://image.kai-test.invalid/original.png", sourceURL: "https://jannyai.com/characters/00000000-0000-4000-8000-000000000001")
+        CharacterCard(id: "janny/00000000-0000-4000-8000-00000000000" + suffix, name: "Archiv-Test", tagline: "Eine Ermittlerin am Bahnhof", creatorNotes: "Öffentliche Beschreibung aus dem Katalog", tags: ["Detective", "Mystery"], avatarURL: "https://image.kai-test.invalid/original.png", sourceURL: "https://jannyai.com/characters/00000000-0000-4000-8000-000000000001_character-archiv-test")
     }
     func testSignedExportKeepsDefinitionAndMenuMetadataAndCachesOriginalArtwork() async throws {
         let original = preview(); let transport = session()
@@ -27,6 +27,7 @@ import FadenCore
         XCTAssertEqual(GermanLanguage.tags(["BDSM", "NOIR", "AnyPOV"]), ["BDSM", "NOIR", "AnyPOV"], "Translation must not silently delete catalogue genres or role tags")
         XCTAssertEqual(card.sourceURL, original.sourceURL)
         XCTAssertEqual(card.avatarURL, original.avatarURL)
+        defer { if let url = card.cachedAvatarURL.flatMap(URL.init(string:)) { try? FileManager.default.removeItem(at: url) } }
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: folder) }
         let prepared = try await CatalogueNetwork.prepare(card, directory: folder, downloadSession: transport)
@@ -34,6 +35,28 @@ import FadenCore
         XCTAssertTrue(cached.isFileURL)
         XCTAssertEqual(try Data(contentsOf: cached), try CatalogueFixture.pngCard())
         XCTAssertNotNil(CGImageSourceCreateWithData(try Data(contentsOf: cached) as CFData, nil))
+    }
+    func testBrowserFileImportKeepsPreviewLabelsAndOriginalPicture() async throws {
+        let original = preview()
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
+        try CatalogueFixture.pngCard().write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        let store = AppStore()
+        let done = expectation(description: "Browser file becomes a complete saved card")
+        var imported: CharacterCard?
+        store.importFile(file, origin: original) { card in imported = card; done.fulfill() }
+        await fulfillment(of: [done], timeout: 8)
+        let card = try XCTUnwrap(imported)
+        XCTAssertEqual(card.id, original.id)
+        XCTAssertEqual(card.tagline, original.tagline)
+        XCTAssertEqual(card.creatorNotes, original.creatorNotes)
+        XCTAssertEqual(card.firstMessage, "Guten Abend, {{user}}.")
+        XCTAssertTrue(card.tags.contains("Mystery")); XCTAssertTrue(card.tags.contains("Detektiv"))
+        XCTAssertEqual(card.avatarURL, original.avatarURL)
+        let image = try XCTUnwrap(card.cachedAvatarURL.flatMap(URL.init(string:)))
+        XCTAssertEqual(try Data(contentsOf: image), try CatalogueFixture.pngCard())
+        try? FileManager.default.removeItem(at: image)
+        store.archive.characters.removeAll { $0.id == original.id }; store.save()
     }
     func testWebsiteVerificationIsNotReportedAsAnUnavailableCreatorExport() async throws {
         let original = preview("2"); let transport = session()
@@ -53,9 +76,9 @@ import FadenCore
     }
     func testRegularWebsitePNGDownloadIsAutomaticallyCaptured() async throws {
         let done = expectation(description: "Public export imported without a file picker")
-        var file: URL?
+        var file: URL?; var originatingPage: URL?
         let id = "00000000-0000-4000-8000-000000000001"
-        let coordinator = CatalogueWebView.Coordinator(automaticCardID: id, onDownload: { url, _ in file = url; done.fulfill() }, onError: { message in XCTFail(message); done.fulfill() })
+        let coordinator = CatalogueWebView.Coordinator(automaticCardID: id, onDownload: { url, page in file = url; originatingPage = page; done.fulfill() }, onError: { message in XCTFail(message); done.fulfill() })
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 390, height: 700))
         web.navigationDelegate = coordinator; web.uiDelegate = coordinator
         let window = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first { $0.isKeyWindow }
@@ -76,6 +99,7 @@ import FadenCore
         """
         web.loadHTMLString(html, baseURL: URL(string: "https://jannyai.com/characters/" + id))
         await fulfillment(of: [done], timeout: 20)
+        XCTAssertEqual(originatingPage.flatMap { JannyWebsite.cardID(in: $0) }, id, "CDN or blob downloads must retain their source card")
         let imported = try CardCodec.decode(Data(contentsOf: XCTUnwrap(file)))
         XCTAssertEqual(imported.description, "Eine geduldige, genaue Ermittlerin.")
         XCTAssertEqual(imported.firstMessage, "Guten Abend, {{user}}.")
