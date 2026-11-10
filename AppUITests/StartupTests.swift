@@ -145,6 +145,17 @@ import XCTest
         XCTAssertTrue(app.navigationBars["Deutsch einrichten"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["prepare-language-en"].exists)
     }
+    func testSettingsOpenTranslationSetupWithoutPreparingCharacterCards() {
+        continueAfterFailure = false
+        let app = XCUIApplication(); app.launchArguments = offlineArguments(); app.launch()
+        app.tabBars.buttons["Einstellungen"].tap()
+        let setup = app.buttons["settings-language-setup"]
+        for _ in 0..<10 { if setup.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(setup.isHittable); setup.tap()
+        XCTAssertTrue(app.navigationBars["Deutsch einrichten"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["prepare-language-en"].exists)
+        XCTAssertFalse(app.buttons["60 Karten mit Originalbildern vorbereiten"].exists)
+    }
     private func offlineArguments() -> [String] {
         ["-FadenUITest", "-FadenUITestStore", UUID().uuidString, "-AppleLanguages", "(de)", "-AppleLocale", "de_DE"]
     }

@@ -58,6 +58,19 @@ final class TextStreamTests: XCTestCase {
         XCTAssertFalse(CharacterGenre.guideverse.matches(.init(name: "Travel Guide")))
         XCTAssertEqual(JannyCatalogueCodec.query("", genre: .guideverse), "Guideverse")
     }
+    func testNumericAndPlaceholderOnlyFieldsDoNotRequestAnAppleTranslation() throws {
+        let values = ["age": " 42 ", "time": "12:30", "variables": "{{char}}: 17 / {{user}}!", "empty": "\n…🙂\n"]
+        let plan = CardTranslationBatch(fields: values)
+        XCTAssertTrue(plan.requests.isEmpty, "Apple can reject number-only fragments as nothingToTranslate")
+        XCTAssertEqual(try plan.restore([:]), values)
+    }
+    func testSkippingNumbersKeepsTheOriginalVariableAndTranslatedTextBoundaries() throws {
+        let plan = CardTranslationBatch(fields: ["body": "42 {{char}}. Hello {{user}}! 123"])
+        XCTAssertEqual(plan.requests.count, 1)
+        let request = try XCTUnwrap(plan.requests.first)
+        XCTAssertTrue(request.text.contains("Hello"))
+        XCTAssertEqual(try plan.restore([request.id: ". Hallo"])["body"], "42 {{char}}. Hallo {{user}}! 123")
+    }
     func testOpenRouterAsksToDisableReasoningWithoutChangingOtherAPIs() throws {
         let prompt = BuiltPrompt(system: "Deutsch", messages: [.init(role: "user", content: "Hallo")], retrievedCount: 0, truncated: false)
         for kind in [ProviderKind.openRouter, .compatible] {

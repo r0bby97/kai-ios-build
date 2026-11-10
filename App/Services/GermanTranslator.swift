@@ -98,7 +98,7 @@ struct TranslationSetupRequired: LocalizedError {
         #else
         let status = await LanguageAvailability().status(from: Locale.Language(identifier: language), to: Locale.Language(identifier: "de"))
         switch status {
-        case .installed: missingLanguages.remove(language)
+        case .installed: missingLanguages.remove(language); failedLanguages.remove(language)
         case .supported:
             guard allowDownload else {
                 missingLanguages.insert(language)
@@ -108,19 +108,11 @@ struct TranslationSetupRequired: LocalizedError {
         @unknown default: throw FadenError.network("Die Übersetzung ist derzeit nicht verfügbar.")
         }
         if !allowDownload, #available(iOS 26.0, *) {
-            let session: TranslationSession
-            if #available(iOS 26.4, *) {
-                session = TranslationSession(installedSource: Locale.Language(identifier: language), target: Locale.Language(identifier: "de"), preferredStrategy: .lowLatency)
-            } else {
-                session = TranslationSession(installedSource: Locale.Language(identifier: language), target: Locale.Language(identifier: "de"))
-            }
+            let session = AppleCardTranslation.installedSession(language: language)
             do { return try await translatedFields(fields, session: session) }
             catch is CancellationError { throw CancellationError() }
             catch {
-                let status = await LanguageAvailability().status(from: Locale.Language(identifier: language), to: Locale.Language(identifier: "de"))
-                switch status { case .installed: break; default: missingLanguages.insert(language); throw TranslationSetupRequired(language: language) }
-                let native = error as NSError
-                throw FadenError.network("Apple-Übersetzung fehlgeschlagen (\(native.domain), Code \(native.code)). Bitte die Sprachpakete unter Deutsch einrichten prüfen.")
+                throw translationFailure(error, language: language)
             }
         }
         guard !failedLanguages.contains(language) else { throw FadenError.network("Für diese Übersetzung werden die Sprachpakete auf deinem iPhone benötigt. Versuche es nach dem Download erneut.") }
@@ -149,8 +141,7 @@ struct TranslationSetupRequired: LocalizedError {
         timer = Task { [weak self] in
             try? await Task.sleep(for: .seconds(timeout))
             if !Task.isCancelled, self?.current?.id == id {
-                if let language = self?.current?.language { self?.failedLanguages.insert(language) }
-                self?.finish(.failure(FadenError.network("Die Übersetzung wartet auf Sprachpakete. Du kannst sie später erneut starten.")), id: id)
+                self?.finish(.failure(FadenError.network("Die Apple-Übersetzung hat das Zeitlimit erreicht. Bitte erneut versuchen; ein fehlendes Sprachpaket ist damit nicht bestätigt.")), id: id)
             }
         }
     }
@@ -158,14 +149,31 @@ struct TranslationSetupRequired: LocalizedError {
         guard let job = current, job.id == id, processing != id else { return }
         processing = id
         do {
-            if job.allowDownload { try await session.prepareTranslation() }
+            if job.allowDownload {
+                try await session.prepareTranslation()
+                if #available(iOS 26.0, *) {
+                    try AppleCardTranslation.checkPreparation(isReady: session.isReady, language: job.language)
+                }
+            }
             let result = try await translatedFields(job.fields, session: session)
             finish(.success(result), id: id)
         } catch {
             guard current?.id == id else { return }
-            failedLanguages.insert(job.language)
-            finish(.failure(FadenError.network("Die deutsche Übersetzung konnte nicht abgeschlossen werden. Bitte die Sprachpakete auf deinem iPhone laden und erneut versuchen.")), id: id)
+            finish(.failure(translationFailure(error, language: job.language)), id: id)
         }
+    }
+    func translationFailure(_ error: Error, language: String) -> Error {
+        if error is TranslationSetupPending {
+            missingLanguages.insert(language)
+            return error
+        }
+        let kind = AppleCardTranslation.failure(error)
+        if kind == .cancelled { return CancellationError() }
+        if kind == .notInstalled {
+            missingLanguages.insert(language); failedLanguages.insert(language)
+            return TranslationSetupRequired(language: language)
+        }
+        return AppleCardTranslationFailure(kind: kind)
     }
     private func translatedFields(_ fields: [String: String], session: TranslationSession) async throws -> [String: String] {
         let plan = CardTranslationBatch(fields: fields)
@@ -207,7 +215,7 @@ private struct TranslationWorker: View {
     let language: String
     var body: some View {
         Color.clear.frame(width: 1, height: 1).allowsHitTesting(false)
-            .translationTask(source: Locale.Language(identifier: language), target: Locale.Language(identifier: "de")) { session in
+            .translationTask(AppleCardTranslation.configuration(language: language)) { session in
                 await translator.perform(id: jobID, session: session)
             }
     }

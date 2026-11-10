@@ -1,4 +1,14 @@
-Kai 1.6.0 – Prüfbuild 1008
+Kai 1.6.0 – Korrektur der Apple-Kartenübersetzung
+
+„Sprachpakete sind bereit“ konnte in Build 1008 auf dem iPhone 17 trotzdem von einem Übersetzungsfehler gefolgt werden: Einrichtung und Kartenübersetzung verwendeten ab iOS 26.4 unterschiedliche Apple-Modi. Beide verwenden jetzt dieselbe Konfiguration. Die Einrichtung meldet Erfolg erst nach Prüfung der konkreten Sitzung; interne Fehler, Abbrüche und tatsächlich fehlende Pakete werden getrennt angezeigt.
+
+Die Einstellungen bieten jetzt direkt „Deutschübersetzung einrichten“. Englisch → Deutsch bleibt sichtbar, auch wenn andere geladene Karten beispielsweise Indonesisch erkennen lassen. Reine Zahlen und Kartenvariablen werden unverändert übernommen. Bisherige Funktionen und Datenformate bleiben erhalten.
+
+Lokal sind 94 Kernlogiktests bestanden. Die native Prüfung erfolgt vor dem Geräte-Build. Prüfbericht und Grenzen des Simulatorbetriebs: Docs/TranslationFix.md. Eine echte Apple-Übersetzung mit geladenen Sprachpaketen bleibt auf dem iPhone zu bestätigen.
+
+---
+
+Vorheriger Funktionsstand aus Build 1008:
 
 Cardex ergänzt den öffentlichen Kartenkatalog um einen direkten Import vollständiger Charakterkarten und ihrer Kartenbilder. „Online entdecken“ bietet „Alle“, „Cardex“, „Chub“ und „JannyAI“ an. Die gemeinsame Ansicht veröffentlicht Quellen unabhängig und behält beim Nachladen getrennte Seitenstände. Übersetzung und Bilder blockieren die Suchvorschau nicht.
 

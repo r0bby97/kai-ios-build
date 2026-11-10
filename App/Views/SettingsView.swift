@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var connectionOrder = false
     @AppStorage("includeAdultCatalogue") private var includeAdult = true
     @State private var preparationSheet = false
+    @State private var languageSetup = false
     @State private var diagnosticsSheet = false
     @State private var localModel = "mlx-community/Qwen3-1.7B-4bit"
     @State private var personaEditor: UserPersona?
@@ -78,6 +79,8 @@ struct SettingsView: View {
                 Section("Schreiben") {
                     LabeledContent("Sprache", value: "Deutsch")
                     Text("Apple übersetzt Kartentexte direkt auf dem iPhone. Falls Sprachpakete fehlen, werden sie unter Deutsch einrichten einmalig geladen. Dafür werden keine KI-Tokens verwendet.").font(.caption).foregroundStyle(.secondary)
+                    Button("Deutschübersetzung einrichten") { languageSetup = true }
+                        .accessibilityIdentifier("settings-language-setup")
                     Button("Karten vorbereiten und Deutsch einrichten") { preparationSheet = true }
                     Button("Ausstehende Kartenübersetzungen erneut versuchen") { store.retryCatalogueTranslations(force: true) }.disabled(store.translatingCatalogue)
                     Text("Karten werden unabhängig von ihrer Ausgangssprache ins Deutsche übersetzt und gespeichert. Auf iOS 26 werden installierte Sprachpakete direkt angesprochen; die Kartenübersetzung wartet nicht auf eine versteckte Download-Warteschlange.").font(.caption).foregroundStyle(.secondary)
@@ -134,6 +137,7 @@ struct SettingsView: View {
             }.navigationTitle("Einstellungen")
                 .sheet(isPresented: $diagnosticsSheet) { DiagnosticsView().environment(store) }
                 .sheet(isPresented: $preparationSheet) { CataloguePreparationView().environment(store) }
+                .sheet(isPresented: $languageSetup) { TranslationSetupView().environment(store) }
                 .sheet(isPresented: $connectionOrder) { ConnectionOrderView().environment(store) }
                 .onDisappear { store.save() }
                 .onChange(of: store.archive.menuTheme) { _, _ in store.save() }

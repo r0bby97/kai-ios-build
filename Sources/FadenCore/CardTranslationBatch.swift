@@ -12,7 +12,7 @@ public struct CardTranslationBatch: Sendable {
         var requests: [Request] = []; var plans: [String: [TemplatePart]] = [:]
         for (key, value) in fields.sorted(by: { $0.key < $1.key }) {
             let parts = TemplateText.parts(value); plans[key] = parts
-            for (i, part) in parts.enumerated() where !part.isPlaceholder && part.text.contains(where: { $0.isLetter || $0.isNumber }) {
+            for (i, part) in parts.enumerated() where !part.isPlaceholder && part.text.contains(where: \.isLetter) {
                 requests.append(.init(id: "\(key):\(i)", text: part.text))
             }
         }
@@ -23,7 +23,7 @@ public struct CardTranslationBatch: Sendable {
         for (key, parts) in plans {
             var text = ""
             for (i, part) in parts.enumerated() {
-                if part.isPlaceholder || !part.text.contains(where: { $0.isLetter || $0.isNumber }) { text += part.text; continue }
+                if part.isPlaceholder || !part.text.contains(where: \.isLetter) { text += part.text; continue }
                 guard let translated = translations["\(key):\(i)"], !translated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     throw FadenError.invalidData("Die Übersetzung wurde nicht vollständig geliefert.")
                 }

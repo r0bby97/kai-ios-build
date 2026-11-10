@@ -6,7 +6,7 @@ on:
         description: Prüfungen vor dem einmaligen IPA-Build
         type: choice
         default: all
-        options: [all, janny-import]
+        options: [all, janny-import, translation]
 permissions:
   contents: write
 concurrency:
@@ -40,6 +40,8 @@ jobs:
           task_test_args=()
           if [ "$KAI_TEST_SCOPE" = "janny-import" ]; then
             task_test_args=(-only-testing:FadenServiceTests/CatalogueImportTests -only-testing:FadenUITests/StartupTests/testJannySearchOffersTheOmegaverseGenre)
+          elif [ "$KAI_TEST_SCOPE" = "translation" ]; then
+            task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testMissingLanguagePackOffersSetupAndDoesNotStartAnEnglishChat -only-testing:FadenUITests/StartupTests/testSettingsOpenTranslationSetupWithoutPreparingCharacterCards -only-testing:FadenUITests/StartupTests/testPublicCatalogueAutomaticallyAddsRealCards)
           fi
           xcodebuild test "${task_test_args[@]}" -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES KAI_TEST_FLAGS=KAI_TESTING ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
       - name: Build iPhone application

@@ -43,12 +43,14 @@ struct TranslationSetupView: View {
     @State private var scope = UUID().uuidString
     @State private var loading: String?
     @State private var status: String?
-    private var languages: [String] { store.translator.missingLanguages.isEmpty ? ["en"] : store.translator.missingLanguages.sorted() }
+    private var languages: [String] { AppleCardTranslation.setupLanguages(missing: store.translator.missingLanguages) }
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     Text("Lade einmalig die Apple-Sprachpakete. Danach kann Kai Kartentexte auf dem iPhone ins Deutsche übersetzen. Originalkarten und Bilder sind davon unabhängig verfügbar.")
+                    Text("Links steht die Ausgangssprache, das Ziel bleibt Deutsch. Weitere Sprachen können von anderen geladenen Karten stammen; du brauchst nur die Sprachen deiner gewünschten Karten einzurichten.")
+                        .font(.caption).foregroundStyle(.secondary)
                     ForEach(languages, id: \.self) { language in
                         Button("\(Locale(identifier: "de").localizedString(forLanguageCode: language) ?? language) → Deutsch einrichten") {
                             loading = language; status = nil
