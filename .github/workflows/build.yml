@@ -6,7 +6,7 @@ on:
         description: Prüfungen vor dem einmaligen IPA-Build
         type: choice
         default: all
-        options: [all, translation]
+        options: [all, translation, discovery]
 permissions:
   contents: write
 concurrency:
@@ -40,6 +40,8 @@ jobs:
           task_test_args=()
           if [ "$KAI_TEST_SCOPE" = "translation" ]; then
             task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testMissingLanguagePackOffersSetupAndDoesNotStartAnEnglishChat -only-testing:FadenUITests/StartupTests/testSettingsOpenTranslationSetupWithoutPreparingCharacterCards -only-testing:FadenUITests/StartupTests/testPublicCatalogueAutomaticallyAddsRealCards)
+          elif [ "$KAI_TEST_SCOPE" = "discovery" ]; then
+            task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testDiscoveryStartsOnlineAndMigratesTheRemovedSource -only-testing:FadenUITests/StartupTests/testAllSourcesAndCardexAreSelectable -only-testing:FadenUITests/StartupTests/testGenderTabsAndGenreRemainIndependent -only-testing:FadenUITests/StartupTests/testProfileOpensTheCardAndKeepsTheCurrentChatAndDraft -only-testing:FadenUITests/StartupTests/testDraftSurvivesCardNavigationBackgroundAndRelaunch -only-testing:FadenUITests/StartupTests/testLibrarySettingsAndFirstConversation)
           fi
           xcodebuild test "${task_test_args[@]}" -project Faden.xcodeproj -scheme Faden -configuration Release -destination "platform=iOS Simulator,id=$task_simulator_id" -parallel-testing-enabled NO -derivedDataPath build -resultBundlePath build/OptimizedTests.xcresult ENABLE_TESTABILITY=YES KAI_TEST_FLAGS=KAI_TESTING ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO -skipPackagePluginValidation -skipMacroValidation | tee optimized-tests.log
       - name: Build iPhone application

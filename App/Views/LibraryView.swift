@@ -58,7 +58,7 @@ struct LibraryView: View {
                         Text("Online entdecken").tag(1)
                     }.pickerStyle(.segmented)
                     if source == 1 {
-                        Picker("Kartendatenbank", selection: $catalogueSourceRaw) {
+                        Picker("Kartendatenbank", selection: Binding(get: { catalogueSource.rawValue }, set: { catalogueSourceRaw = $0 })) {
                             ForEach(CatalogueSource.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
                         }.pickerStyle(.segmented).accessibilityIdentifier("catalogue-source")
                     }
@@ -474,7 +474,7 @@ struct CharacterDetail: View {
                   }
                 }
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } }
+                    ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() }.accessibilityIdentifier("close-character-detail") }
                     ToolbarItem(placement: .primaryAction) {
                         HStack {
                             Button { store.toggleFavorite(card) } label: { Image(systemName: store.archive.favoriteIDs.contains(card.id) ? "star.fill" : "star") }

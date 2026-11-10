@@ -116,7 +116,7 @@ import XCTest
         XCTAssertTrue(app.staticTexts["character-detail-title"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Gespräch beginnen"].exists)
         XCTAssertFalse(app.buttons["Neues Gespräch beginnen"].exists)
-        app.navigationBars.buttons["Schließen"].tap()
+        app.buttons["close-character-detail"].tap()
         XCTAssertTrue(input(app).waitForExistence(timeout: 5))
         XCTAssertEqual(input(app).value as? String, "Mein ungesendeter Entwurf")
         XCTAssertTrue(app.buttons["chat-character-profile"].exists)
