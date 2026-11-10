@@ -1,10 +1,10 @@
 # Kai – Abgleich der vereinbarten Anforderungen
 
-Stand: 10. November 2026. [Build 1008](Validation-1008.md) hat 92 Kernlogik-, 16 iOS-Dienst- und 18 Oberflächentests bestanden; die heruntergeladene IPA ist geprüft. „Implementiert“ beschreibt keine erfolgreiche Abnahme mit sämtlichen Konten und dem iPhone des Nutzers. Die App ist noch nicht als vollständig auf dem echten Gerät abgenommen freigegeben.
+Stand: 10. November 2026. [Build 1012](Validation-1012.md) deckt 126 Kernlogik-, 31 iOS-Dienst- und alle 24 Oberflächenfälle aus Vollprüfung und gezieltem Nachlauf ab; die heruntergeladene IPA ist geprüft. „Implementiert“ beschreibt keine erfolgreiche Abnahme mit sämtlichen Konten und dem iPhone des Nutzers. Die App ist noch nicht als vollständig auf dem echten Gerät abgenommen freigegeben.
 
 | Anforderung | Tatsächlicher Stand |
 | --- | --- |
-| iPhone-App ohne eigenen Mac, IPA für SideStore | SwiftUI-Projekt und öffentlicher macOS-Build vorhanden. IPA 1.6.0 / 1008 nach vollständigen nativen Tests gebaut und heruntergeladen geprüft. |
+| iPhone-App ohne eigenen Mac, IPA für SideStore | SwiftUI-Projekt und öffentlicher macOS-Build vorhanden. IPA 1.7.0 / 1012 nach nativen Prüfungen gebaut und heruntergeladen geprüft. |
 | Frische Installation | Mit derselben stabilen App-Kennung möglich, indem die bisherige Installation vorher entfernt wird. Dabei werden lokale Chats und Downloads gelöscht. |
 | Name Kai und ausgewähltes Symbol | Implementiert. |
 | Öffentliche Karten schon beim Start | Chub-Vorschauen werden automatisch nach Beliebtheit geladen; 24/60/120 Karten können vorbereitet werden, Standard 60. Keine erfundenen Beispielkarten in der normalen Entdecken-Ansicht. |
@@ -39,12 +39,12 @@ Stand: 10. November 2026. [Build 1008](Validation-1008.md) hat 92 Kernlogik-, 16
 | Freie 18+-Themen einschließlich expliziter Sexualität und Gewalt | AI Horde mit NSFW-Chat-Rechnern und weitere passende API-Optionen ergänzt. Inhaltsrichtwerte sind sichtbar. Harmlose Live-Rollenspiele funktionieren; die Ausgabe jeder konkreten expliziten Szene wird nicht zugesichert. Modell- und Betreiberregeln gelten weiterhin. |
 | Limits umgehen / ständig Konten neu erzeugen | Nicht implementiert. Anbieterlimits werden respektiert; kein automatisches Anlegen neuer Konten. |
 | Verständliche Fehler statt nur „kein Text“ | Transportdaten, HTTP-Status, Ereignisse, Textlänge, Tokenangaben und Abschlussgrund werden getrennt protokolliert. Keine Zugangsdaten oder Chattexte in Fehlerberichten. |
-| Verwendung vor Freigabe testen | Build 1008: 92 Kernlogik-, 16 iOS-Dienst- und 18 Oberflächentests bestanden. Echte Horde-Generierung und Cardex-Suche/-Import zusätzlich geprüft. Live-Janny, tatsächliche persönliche KI-Konten, Apple-Sprachpakete und lokales MLX auf Hardware sind noch keine bestandene Gesamtabnahme. |
+| Verwendung vor Freigabe testen | Build 1012: 126 Kernlogik-, 31 iOS-Dienst- und alle 24 Oberflächenfälle über Vollprüfung und Nachlauf bestanden. Echte Horde-Generierung und Cardex-Suche/-Import zusätzlich geprüft. Live-Janny, tatsächliche persönliche KI-Konten, Apple-Sprachpakete und lokales MLX auf Hardware sind noch keine bestandene Gesamtabnahme. |
 
-## Änderungen vor der nächsten IPA
+## Änderungen in der geprüften IPA
 
-125 lokale Kernlogiktests bestanden; vollständige native Dienst- und UI-Prüfung folgt vor der Veröffentlichung. Die Testzahlen oben beschreiben ausdrücklich den zuletzt ausgelieferten Build 1008. Aktueller Änderungsnachweis: [ConversationFixes.md](ConversationFixes.md) und [TranslationFix.md](TranslationFix.md).
+Die Änderungen sind gebaut und geprüft; [Validation-1012.md](Validation-1012.md) erklärt den vollständigen Testlauf, zwei korrigierte UI-Fälle und den gezielten Nachlauf. Details: [ConversationFixes.md](ConversationFixes.md) und [TranslationFix.md](TranslationFix.md).
 
-Neu: Online als Startansicht, unabhängige Gender-/Genre-Filter mit alphabetischen Genres, lesbare Datenstrukturen, Profil öffnet Karte, Gesprächsstart nach nur gewählter Begrüßung, verbesserte Mehrsprachübersetzung, privater Gedankeninhalt bleibt lokal, portabler Modellwechsel, stärkere Persönlichkeitsverankerung, Tippfehlertoleranz und einheitliches Scroll-Verhalten. Reale Apple-Übersetzungen auf dem iPhone und die konkreten persönlichen OpenRouter-Fehler sind dadurch noch nicht als vollständig erfolgreich abgenommen bestätigt.
+Enthalten: Online als Startansicht, unabhängige Gender-/Genre-Filter mit alphabetischen Genres, lesbare Datenstrukturen, Profil öffnet Karte, Gesprächsstart nach nur gewählter Begrüßung, verbesserte Mehrsprachübersetzung, privater Gedankeninhalt bleibt lokal, portabler Modellwechsel, stärkere Persönlichkeitsverankerung, Tippfehlertoleranz und einheitliches Scroll-Verhalten. Reale Apple-Übersetzungen auf dem iPhone und die konkreten persönlichen OpenRouter-Fehler sind damit noch nicht als vollständig erfolgreich abgenommen bestätigt.
 
 Die geprüften Anbieterregeln sind in [ProviderContentRules.md](ProviderContentRules.md) getrennt nach Erotik und Gewalt dokumentiert.

@@ -1,6 +1,6 @@
 # Kai 1.7: Gesprächs- und Entdecken-Korrekturen
 
-Stand: 10. November 2026. 125 Linux-Kernlogiktests bestanden. Die native Freigabe steht vor dem nächsten vollständigen öffentlichen CI-Lauf noch aus. Tests mit kontrollierten Antworten belegen den Ablauf, keine allgemeine literarische Qualität.
+Stand: 10. November 2026. 125 Linux-Kernlogiktests bestanden. Native Dienst- und Oberflächenprüfungen sind über Vollprüfung und gezielten Nachlauf bestanden; die IPA ist geprüft. Details: [Validation-1012.md](Validation-1012.md). Tests mit kontrollierten Antworten belegen den Ablauf, keine allgemeine literarische Qualität.
 
 ## Tatsächliche Funktionsänderungen
 
@@ -18,7 +18,7 @@ Online ist die Standardansicht. Die Quellen sind Alle, Cardex und Chub; gespeich
 
 Live-Cardex-Prüfung: männliches Omegaverse, zweite Seite ohne doppelte IDs und weibliches Omegaverse lieferten gefilterte Karten über den tatsächlichen Core-Suchdienst. Chub-Tags wurden ebenfalls live geprüft. Quellenübergreifende Beliebtheitszahlen werden nicht als vergleichbare globale Rangliste ausgegeben.
 
-## Vor der IPA erforderliche native Prüfung
+## Vor der IPA bestandene Prüfungen
 
 - Alle Diensttests einschließlich echter Request-Serialisierung des zweiten OpenRouter-Zugs, bestätigter Modell-401 versus Schlüssel-401 und Modell-Kontextgrenze.
 - Alle UI-Tests einschließlich zwei Zügen mit Anbieterwechsel, dauerhaftem Entwurf beim Öffnen des Profils, zweimal langer gestreamter Antwort bei offener Tastatur, Pfeilnavigation, unabhängigen Genre-/Gender-Filtern und Übersetzungseinrichtung.

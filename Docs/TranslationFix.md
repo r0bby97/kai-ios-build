@@ -14,7 +14,7 @@ Der Start wartet nur auf den ausgewählten Einstieg. Eine leere Begrüßung star
 
 ## Nachweis und Grenzen
 
-125 lokale Kernlogiktests bestanden, einschließlich Struktur, Variablen, gemischten Schriften und Textgrenzen. Elf native Übersetzungs-Diensttests sowie Einrichtungs- und Startabläufe werden vor dem IPA-Build im vollständigen öffentlichen Prüflauf ausgeführt.
+125 lokale Kernlogiktests bestanden, einschließlich Struktur, Variablen, gemischten Schriften und Textgrenzen. Alle elf nativen Übersetzungs-Diensttests sowie die Einrichtungs- und Startabläufe sind bestanden. Testprovenienz und IPA-Prüfung: [Validation-1012.md](Validation-1012.md).
 
 Der Simulator stellt keine echten Apple-Übersetzungsmodelle bereit. Deshalb sind erfolgreiche SDK-/Logik-/UI-Tests kein Nachweis einer echten Übersetzung auf dem iPhone. Benötigt wird anschließend ein Versuch mit einer englischen und einer gemischten Karte auf dem Gerät. Keine garantierte Sekundenangabe und keine Behauptung, jede individuelle Ursache von Code 1 sei damit nachgewiesen. Ein einzelner lateinischer Absatz mit mehreren Sprachen kann weiterhin eine ungenaue automatische Spracherkennung ergeben.
 
