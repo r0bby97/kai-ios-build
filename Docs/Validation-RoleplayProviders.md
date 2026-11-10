@@ -1,6 +1,6 @@
 # KI-Anbindungen und Inhaltsrichtwerte: Prüfstand
 
-Stand: 9. November 2026. Änderungen sind Quellcode, noch keine neue IPA. Kein GitHub-Actions-Lauf wurde gestartet.
+Stand: 10. November 2026. Der vollständige öffentliche [iOS-Prüflauf 42696543306](https://github.com/r0bby97/kai-ios-build/actions/runs/42696543306) ist erfolgreich abgeschlossen (Quellstand `48d3dcc`). Die daraus erzeugte IPA ist [Build 1008](Validation-1008.md). Private Build-Minuten wurden nicht verwendet.
 
 ## Umsetzung
 
@@ -22,11 +22,13 @@ Stand: 9. November 2026. Änderungen sind Quellcode, noch keine neue IPA. Kein G
 5. **Echter Rollenspielprompt:** Der unveränderte `PromptBuilder` erzeugte für eine synthetische erwachsene Archivarin den normalen Kai-Kontext (Schätzung: 1.445 Tokens, bis zu 400 Wörter). Der neue Client forderte 1.200 Ausgabetokens an. Die automatische Auswahl nutzte Cydonia 24B v4.3 und lieferte eine deutsche Rollen-Antwort mit 117 Wörtern / 190 Ausgabetokens in rund 12,4 Sekunden. Das belegt den normalen Promptweg; es ist keine Abnahme langer Geschichten oder jeder Stilregel.
 6. **Anbieter-Verfügbarkeit:** NanoGPT lieferte eine öffentliche Modellliste mit 635 Einträgen, Venice eine Textmodell-Liste mit 139 Einträgen. Die regulären Arli-Modell- und Chat-Routen verweigerten Anfragen ohne Schlüssel mit HTTP 401. Keine persönliche Arli-/NanoGPT-/Venice-Generierung wird als bestanden behauptet.
 7. Swift-Syntaxprüfung aller geänderten App-/UI-Testdateien und `git diff --check` bestanden.
+8. **Native iOS-Prüfung bestanden:** 16 Diensttests und 18 Oberflächentests im optimierten Release auf dem iPhone-17-Simulator, keine Fehler und keine übersprungenen Tests. Darunter die fünf neuen Anbieter-Diensttests, der neue Bedientest `testProviderContentGuidanceIsVisibleInPriorityOverview` sowie Sortierung und Speicherung der Anbieterreihenfolge. Diese kontrollierten Tests verwenden keine persönlichen API-Konten. Zusätzlich bestanden die 92 Kernlogiktests auf dem macOS-Runner.
+9. **Geräteprodukt geprüft:** Die anschließend gebaute IPA 1.6.0 / 1008 wurde heruntergeladen und auf ZIP-Integrität, Version, Build, App-Kennung, iPhoneOS-arm64-Produkt, Metal-Ressourcen und Ausschluss der Testantworten geprüft. GitHub meldet für den öffentlichen Lauf `billable.MACOS.total_ms = 0`.
 
 Die Tests verwenden ausschließlich synthetische harmlose Begrüßungen beziehungsweise Testdaten. Sie belegen weder die Qualität langer deutscher Rollenspiele noch eine Freigabe jeder expliziten Szene. API-Inhaltsrichtwerte beruhen auf veröffentlichten Regeln, nicht auf einem Versuch, Schutzregeln auszutricksen.
 
-## Noch offen vor IPA-Freigabe
+## Grenzen der Abnahme
 
-Der native iOS-Bedientest `testProviderContentGuidanceIsVisibleInPriorityOverview` ist vorbereitet. Die native SwiftUI-Typprüfung, Darstellung auf dem iPhone, tatsächliche iOS-URLSession-Integration und Kontogenerierung der schlüsselpflichtigen Anbieter bleiben zu prüfen. Lokale Modellleistung und Apple-Sprachpakete auf dem iPhone bleiben eigene Abnahmepunkte. Die frühere IPA Build 1007 enthält weder diese Änderungen noch die neuen Cardex-Funktionen.
+Die native SwiftUI-Typprüfung, Darstellung und kontrollierte iOS-URLSession-Integration sind bestanden. Echte Kontogenerierung der schlüsselpflichtigen Anbieter, lokale Modellleistung und Apple-Sprachpakete auf dem echten iPhone bleiben eigene Abnahmepunkte. Der neue Build 1008 enthält diese Änderungen und Cardex; der frühere Build 1007 enthält sie nicht.
 
 Es wurden keine privaten Unterhaltungen, fremden Kartentexte oder Zugangsdaten in das Repository übernommen. Recherche und ausgeschlossene Kandidaten: [FreeRoleplayModels.md](FreeRoleplayModels.md).

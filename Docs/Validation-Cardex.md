@@ -1,6 +1,6 @@
 # Cardex und gemeinsame Entdecken-Ansicht
 
-Stand: 9. November 2026. Quellcode vorbereitet; kein neuer GitHub-Actions-Lauf und keine neue IPA gestartet. Der bisherige Download Build 1007 enthält diese Änderungen noch nicht.
+Stand: 10. November 2026. Die Änderungen und neuen KI-Anbindungen haben den vollständigen öffentlichen [iOS-Prüflauf 42696543306](https://github.com/r0bby97/kai-ios-build/actions/runs/42696543306) bestanden (Quellstand `48d3dcc`). Die heruntergeladene IPA [Build 1008](Validation-1008.md) ist geprüft. Der frühere Build 1007 enthält diese Änderungen nicht.
 
 ## Änderungen
 
@@ -23,8 +23,8 @@ Stand: 9. November 2026. Quellcode vorbereitet; kein neuer GitHub-Actions-Lauf u
 6. **Gemeinsamer App-Suchdienst:** der unveränderte Suchcode aus `App/Services/Catalogue.swift` und `JannyCatalogue.swift` wurde mit einem Linux-URLSession-Adapter ausgeführt. Erste und zweite Omegaverse-Seite lieferten jeweils 24 Cardex- und 24 JannyAI-Vorschauen; Chub lieferte für diesen Tag keine Treffer. Zwischen den Seiten gab es keine wiederholten IDs. Das prüft die Suche, nicht den weiterhin blockierten JannyAI-Download.
 7. **Swift-Syntaxprüfung** der geänderten nativen App- und UI-Testdateien sowie `git diff --check` bestanden.
 
-## Noch offen vor IPA-Freigabe
+## Native Prüfung und verbleibende Grenzen
 
-Der neue native UI-Test `testAllSourcesAndCardexAreSelectable` ist vorbereitet, aber noch nicht ausgeführt. SwiftUI-Typprüfung, native Bildcache-Persistenz, Apple-Übersetzung mit installierten Sprachpaketen und die Bedienung der neuen Auswahl sind auf iOS noch zu prüfen. Die Linux-Livetests prüfen keine SwiftUI-Oberfläche und ersetzen diese Abnahme nicht.
+Der native UI-Test `testAllSourcesAndCardexAreSelectable` hat bestanden. SwiftUI-Typprüfung und Bedienung der neuen Auswahl sind im optimierten iPhone-17-Simulator geprüft. Insgesamt bestanden 92 Kernlogiktests, 16 iOS-Diensttests (einschließlich kontrolliertem Bildcache-/PNG-Import) und 18 Oberflächentests. Echte Cardex-Bildcache-Persistenz nach längerem Gerätebetrieb und Apple-Übersetzung mit installierten Sprachpaketen bleiben auf dem iPhone zu prüfen. Die Linux-Livetests und kontrollierten Simulator-Importtests sind kein Nachweis eines erfolgreichen direkten Live-JannyAI-Downloads.
 
 Es wurden keine privaten Chats, API-Zugangsdaten oder vollständigen fremden Kartentexte in das öffentliche Repository übernommen. Die neue KI-Recherche ist in [FreeRoleplayModels.md](FreeRoleplayModels.md) dokumentiert; AI Horde ist inzwischen angebunden; die separaten Prüfungen stehen in [Validation-RoleplayProviders.md](Validation-RoleplayProviders.md).
