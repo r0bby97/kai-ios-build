@@ -192,7 +192,7 @@ struct TranslationSetupRequired: LocalizedError {
             if job.allowDownload {
                 try await session.prepareTranslation()
                 if #available(iOS 26.0, *) {
-                    try AppleCardTranslation.checkPreparation(isReady: session.isReady, language: job.language)
+                    try AppleCardTranslation.checkPreparation(isReady: await session.isReady, language: job.language)
                 }
             }
             let result = try await translatedFields(job.fields, session: session, language: job.language, scope: job.scope)
