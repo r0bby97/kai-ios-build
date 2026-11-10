@@ -1,35 +1,26 @@
-# Apple-Kartenübersetzung nach erfolgreicher Einrichtung
+# Apple-Kartenübersetzung und Gesprächsstart
 
-Stand: 10. November 2026. Ausgangspunkt ist Build 1008: „Sprachpakete sind bereit“, anschließend `Translation.TranslationError`, Code 1. Die neue Korrektur ist zunächst Quellcode; die native Prüfung erfolgt vor dem nächsten IPA-Build.
+Stand: 10. November 2026, Änderungen für Kai 1.7. Ausgangspunkt: Build 1008 meldet nach erfolgreicher Einrichtung weiterhin TranslationError Code 1; gemischte Karten laden lange und sperren den Gesprächsstart.
 
-## Ursache im App-Ablauf
+## Behobene Ablauffehler
 
-Kais direkte Kartenübersetzung wählte ab iOS 26.4 ausdrücklich `lowLatency`. Die SwiftUI-Sitzung für „Deutsch einrichten“ verwendete dagegen den Apple-Standard. Dieser kann auf Geräten mit Apple Intelligence `highFidelity` sein und andere Modellressourcen verwenden. Eine erfolgreiche Vorbereitung dieser Sitzung bestätigt deshalb nicht die Ressourcen des anschließend benutzten Modus. Das ist ein belegter Widerspruch im Code; ohne Gerätelog ist damit nicht jede individuelle Apple-Fehlerursache nachgewiesen.
+Einrichtung und direkte Übersetzung wählten zuvor unterschiedliche Strategien. Ab iOS 26.4 verwenden Konfiguration, installierte Sitzung und LanguageAvailability dieselbe Strategie, bevorzugt lowLatency. Nur bei dort nicht unterstützten Sprachen wird highFidelity geprüft. Ab iOS 26 wird die konkrete Sitzungsbereitschaft nach der Vorbereitung geprüft. Typisierte Apple-Fehler ersetzen die ungeeignete Auswertung des NSError-Zahlencodes. Nur bestätigtes notInstalled sperrt die Sprache bis zur Einrichtung; Abbruch und interne Fehler tun das nicht. Englisch → Deutsch bleibt ausdrücklich sichtbar.
 
-Zusätzlich wurden unterschiedliche Apple-Fehler pauschal als Sprachpaketproblem ausgegeben. Die NSError-Brücke eines Swift-Fehlers ist keine verlässliche Fallunterscheidung. Einrichtungsfehler, Abbruch, nicht unterstützte Sprache und interner Dienstfehler müssen getrennt behandelt werden.
+Die Übersetzung arbeitet pro Textfeld und bei gemischten Schriften pro Abschnitt, statt die gesamte Karte einer Sprache zuzuordnen. JSON-/W++-Daten werden als Daten gelesen: übersetzt werden Textwerte, nicht Schlüssel, Zahlen, Eigennamen oder Kartenvariablen. Die Rückgabe behält die Datenstruktur; die Ansicht stellt sie lesbar dar. Normale Prosa und nicht erkannte Formate bleiben normale Texte. Der Parser führt keinen Code aus.
 
-## Korrektur
+Kleine Vierer-Batches zeigen Abschnittsfortschritt. Bis zu 512 übersetzte Abschnitte werden während des App-Laufs wiederverwendet; eine fertig übersetzte Karte wird gespeichert. Ein später fehlgeschlagener Abschnitt verwirft die zwischengespeicherte Übersetzung nicht. Ein Batch hat eine begrenzte Wartezeit; Hintergrundarbeit pausiert zwischen Batches während der KI-Antwort oder eines priorisierten Gesprächseinstiegs.
 
-- Einrichtung und direkte Übersetzung beziehen die Strategie aus derselben Konfiguration. Auf iOS 26.4 und neuer wird für beide der schnelle, lokale Modus verwendet.
-- Nach der Vorbereitung wird ab iOS 26 die Bereitschaft der konkreten Sitzung geprüft. Ein noch laufender Download wird nicht als „bereit“ gemeldet.
-- Fehler werden anhand der offiziellen `TranslationError`-Werte erkannt. Nur ein bestätigtes `notInstalled` erzeugt die Aufforderung zur Sprachpaketeinrichtung. Abbruch und interne Fehler sperren eine Sprache nicht dauerhaft.
-- Reine Zahlen, Satzzeichen und Kartenvariablen bleiben unverändert erhalten und werden nicht als eigene Übersetzungsanfragen gesendet. Fehlende Übersetzungen echter Textteile bleiben ein Fehler; eine Karte wird nicht teilweise als deutsch gespeichert.
-- „Englisch → Deutsch“ bleibt unabhängig von anderen Katalogsprachen in der Einrichtung sichtbar. Zusätzliche Sprachen sind als Ausgangssprachen anderer Karten erklärt, ohne Sprachfilter im Katalog.
-- Unter Einstellungen → Schreiben gibt es einen direkten Knopf „Deutschübersetzung einrichten“. Eine Kartenvorbereitung ist dafür nicht nötig.
+Der Start wartet nur auf den ausgewählten Einstieg. Eine leere Begrüßung startet ohne Übersetzungspaket; die vollständige Originaldefinition bleibt der KI verfügbar und wird nachträglich vorbereitet. Die Detailansicht sperrt nicht mehr bis zur Übersetzung aller Lore-Einträge und alternativen Begrüßungen. Es gibt keine Übersetzungsanfrage an Google oder einen Cloud-KI-Anbieter.
 
-## Prüfung
+## Nachweis und Grenzen
 
-Lokal: **94 Kernlogiktests bestanden**, darunter Zahlenerhalt, Variablen und Textgrenzen. Swift-Syntaxprüfung und `git diff --check` bestanden. Acht native Diensttests für Strategie, Fehlerklassifikation, bestätigte fehlende Pakete, Abbruch, unvollständige Vorbereitung und Sprachenauswahl sowie ein neuer Einrichtungs-Bedientest sind vorbereitet.
+125 lokale Kernlogiktests bestanden, einschließlich Struktur, Variablen, gemischten Schriften und Textgrenzen. Elf native Übersetzungs-Diensttests sowie Einrichtungs- und Startabläufe werden vor dem IPA-Build im vollständigen öffentlichen Prüflauf ausgeführt.
 
-Der einmalige öffentliche Build prüft die nativen Diensttests und die betroffenen Bedienungsabläufe vor der Geräte-IPA. Unveränderte übrige UI-Tests werden nicht erneut ausgeführt; ihr letzter vollständiger Prüflauf bleibt Build 1008. Private Minuten werden nicht verwendet.
+Der Simulator stellt keine echten Apple-Übersetzungsmodelle bereit. Deshalb sind erfolgreiche SDK-/Logik-/UI-Tests kein Nachweis einer echten Übersetzung auf dem iPhone. Benötigt wird anschließend ein Versuch mit einer englischen und einer gemischten Karte auf dem Gerät. Keine garantierte Sekundenangabe und keine Behauptung, jede individuelle Ursache von Code 1 sei damit nachgewiesen. Ein einzelner lateinischer Absatz mit mehreren Sprachen kann weiterhin eine ungenaue automatische Spracherkennung ergeben.
 
-Apple stellt auf dem Simulator keine echten Übersetzungsmodelle bereit. Deshalb sind die native API-/Logikprüfung und die UI-Navigation kein Nachweis einer echten Kartenübersetzung auf dem iPhone. Die abschließende Übersetzung mit geladenen Paketen muss auf dem Gerät geprüft werden. Es werden keine Kartentexte an einen Cloud-Übersetzer oder KI-Anbieter weitergeleitet.
+## Apple-Referenzen
 
-## Offizielle Referenzen
-
-- [Schneller lokaler Modus und dessen Sprachmodelle](https://developer.apple.com/documentation/translation/translationsession/strategy/lowlatency)
-- [Apple-Intelligence-Modus](https://developer.apple.com/documentation/translation/translationsession/strategy/highfidelity)
-- [Strategie einer SwiftUI-Übersetzungssitzung](https://developer.apple.com/documentation/translation/translationsession/configuration/init(source:target:preferredstrategy:))
-- [Vorbereitung und bereits laufende Downloads](https://developer.apple.com/documentation/translation/translationsession/preparetranslation())
-- [Bereitschaft der konkreten Sitzung](https://developer.apple.com/documentation/translation/translationsession/isready)
-- [Unterscheidbare Fehlerfälle](https://developer.apple.com/documentation/translation/translationerror)
+- [Strategien](https://developer.apple.com/documentation/translation/translationsession/strategy)
+- [Verfügbarkeit passend zur Strategie](https://developer.apple.com/documentation/translation/languageavailability/init(preferredstrategy:))
+- [Bereitschaft](https://developer.apple.com/documentation/translation/translationsession/isready)
+- [Typisierte Fehler](https://developer.apple.com/documentation/translation/translationerror)

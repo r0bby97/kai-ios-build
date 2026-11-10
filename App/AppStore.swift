@@ -70,6 +70,15 @@ struct StoryRoute: Identifiable { var id: UUID }
         if arguments.contains("-FadenUITest"), !arguments.contains("-KaiUIPublicLibraryTest"), archive.characters.isEmpty {
             archive.characters = (try? CharacterCard.starters()) ?? []
         }
+        if arguments.contains("-KaiUIGenderTest") {
+            for (index, tag) in [(0, "Female"), (1, "Male"), (2, "Female"), (3, "Male")] where archive.characters.indices.contains(index) {
+                archive.characters[index].tags.append(tag)
+            }
+        }
+        if arguments.contains("-KaiUIStructuredCardTest"), !archive.characters.isEmpty {
+            archive.characters[0].description = #"{"name":"Mara","age":28,"personality":{"traits":["ruhig","wachsam"]}}"#
+            archive.characters[0].personality = ""
+        }
         #endif
         archive.introduceRoleplayProviders()
         archive.preferences.language = "Deutsch"
@@ -93,6 +102,9 @@ struct StoryRoute: Identifiable { var id: UUID }
                 .init(name: "UI-Test: zweiter Anbieter", kind: .compatible, baseURL: "https://kai-ui-test.invalid/v1", models: ["working"])
             ]
             archive.preferences.insightFrequency = .off
+            if arguments.contains("-KaiUIModelSwitchTest") {
+                archive.connections.append(.init(name: "UI-Test: Modellwechsel", kind: .compatible, baseURL: "https://kai-ui-test.invalid/v1", models: ["followup"]))
+            }
         }
         if arguments.contains("-KaiUIInsightTest"), archive.stories.isEmpty, let card = archive.characters.first {
             var story = Story(character: card)
@@ -295,24 +307,21 @@ struct StoryRoute: Identifiable { var id: UUID }
         Task {
             defer { startingConversation = false }
             do {
-                var localized: [CharacterCard] = []
+                var prepared: [CharacterCard] = []
                 for original in characters {
                     var card = original
                     if CatalogueSource.source(for: card.id) != nil {
                         if !card.hasDefinition { card = try await Catalogue.detail(card) }
-                        if card.languageCode != "de" { card = try await translator.germanize(card, scope: "chat-start") }
                     }
-                    localized.append(card)
+                    prepared.append(card)
                 }
-                var opening = greeting; var scenario = scene
-                if let before = characters.first, let after = localized.first, before.id == after.id {
-                    if greeting == before.firstMessage { opening = after.firstMessage }
-                    else if let greeting, let i = before.alternateGreetings.firstIndex(of: greeting), after.alternateGreetings.indices.contains(i) { opening = after.alternateGreetings[i] }
-                    if scene == before.scenario { scenario = after.scenario }
-                }
-                for card in localized { addCard(card) }
-                let story = Story(characters: localized, persona: persona, scenario: scenario, greeting: opening, userName: archive.preferences.userName)
+                let selectedOpening = greeting ?? prepared.first?.firstMessage ?? ""
+                let sourceHint = prepared.first.map { GermanLanguage.code($0.firstMessage) ?? GermanLanguage.code($0.description) ?? "en" } ?? "en"
+                let opening = try await translator.germanizeGreeting(selectedOpening, fallback: sourceHint)
+                for card in prepared { addCard(card) }
+                let story = Story(characters: prepared, persona: persona, scenario: scene, greeting: opening, userName: archive.preferences.userName)
                 archive.stories.insert(story, at: 0); save(); presentedStory = StoryRoute(id: story.id)
+                retryCatalogueTranslations()
             } catch { self.error = "Das Gespräch wurde noch nicht gestartet: " + error.localizedDescription }
         }
     }
@@ -403,9 +412,10 @@ struct StoryRoute: Identifiable { var id: UUID }
         guard generation == nil, let story = story(storyID) else { return }
         let speakers = story.responseOrder(replyingAs: replyingAs, allParticipants: allParticipants)
         generationStoryID = storyID
+        translator.pauseBackground = true
         generation = Task { [weak self] in
             guard let self else { return }
-            defer { self.generation = nil; self.generationStoryID = nil; self.save() }
+            defer { self.generation = nil; self.generationStoryID = nil; self.translator.pauseBackground = false; self.save() }
             var completedReply: CompletedReply?
             for speakerID in speakers {
                 do { try Task.checkCancellation(); completedReply = try await self.generateResponse(storyID, speakerID: speakerID) }
@@ -443,11 +453,12 @@ struct StoryRoute: Identifiable { var id: UUID }
                     let key = Keychain.string("provider.\(connection.id)")
                     if connection.requiresAPIKey && key.isEmpty { continue }
                     if connection.kind == .chatGPT && self.auth.credential(connection.id) == nil { continue }
-                    let outputBudget = min(prefs.requestedOutputTokens, max(128, connection.contextTokens / 3))
+                    let contextWindow = CloudEngine.contextWindow(connection: connection, model: model)
+                    let outputBudget = min(prefs.requestedOutputTokens, max(128, contextWindow / 3))
                     let prompt = PromptBuilder.build(character: character, story: snapshot, preferences: prefs,
-                        contextTokens: connection.contextTokens, outputTokens: outputBudget,
+                        contextTokens: contextWindow, outputTokens: outputBudget,
                         participants: snapshot.participantIDs.compactMap { self.character($0) })
-                    self.promptInfo = "ca. \(prompt.estimatedTokens) Kontext-Tokens · \(prompt.retrievedCount) ältere Auszüge"
+                    self.promptInfo = "ca. \(prompt.estimatedTokens) von \(contextWindow) Kontext-Tokens · \(prompt.retrievedCount) ältere Auszüge" + (prompt.truncated ? " · gekürzter Verlauf" : "")
                     self.generationStatus = "\(character.name) · \(connection.name)"
                     var limiter = ResponseWordLimiter(maximumWords: prefs.maximumResponseWords)
                     let onDelta: @MainActor (String) -> Bool = { [weak self] delta in

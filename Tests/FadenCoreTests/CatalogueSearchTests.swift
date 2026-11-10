@@ -24,14 +24,14 @@ final class CatalogueSearchTests: XCTestCase {
         await gate.open()
         let result = try await task.value
         XCTAssertEqual(result.cards.map(\.id), ["cardex/a", "chub/a", "cardex/b"])
-        XCTAssertEqual(result.notices.map(\.source), [.janny])
-        XCTAssertEqual(result.continuations, [.janny: .init(page: 1)])
+        XCTAssertTrue(result.notices.isEmpty)
+        XCTAssertTrue(result.continuations.isEmpty)
         XCTAssertNil(result.totalCount)
     }
     func testIndependentPaginationRetriesFailedPageAndDoesNotRestartExhaustedSource() async throws {
         let requests = SearchRequests()
         let first = try await CatalogueSearch.run(source: .all, fetch: { source, position in
-            if source == .janny { throw SearchError.offline }
+            if source == .chub { throw SearchError.offline }
             return .init(cards: [self.card(source.rawValue + "/1")], hasMore: source == .cardex, nextCursor: source == .cardex ? "cursor-2" : nil)
         })
         let second = try await CatalogueSearch.run(source: .all, positions: first.continuations, fetch: { source, position in
@@ -40,8 +40,8 @@ final class CatalogueSearchTests: XCTestCase {
         })
         let values = await requests.values
         XCTAssertEqual(values[.cardex], .init(page: 2, cursor: "cursor-2"))
-        XCTAssertEqual(values[.janny], .init(page: 1))
-        XCTAssertNil(values[.chub])
+        XCTAssertEqual(values[.chub], .init(page: 1))
+        XCTAssertNil(values[.janny])
         XCTAssertFalse(second.hasMore)
         XCTAssertTrue(second.notices.isEmpty)
     }
@@ -49,8 +49,8 @@ final class CatalogueSearchTests: XCTestCase {
         let result = try await CatalogueSearch.run(source: .all, fetch: { source, _ in
             .init(cards: [self.card("same"), self.card(source.rawValue)], hasMore: false, totalCount: 5)
         })
-        XCTAssertEqual(result.cards.map(\.id), ["same", "cardex", "chub", "janny"])
-        XCTAssertEqual(result.totalCount, 15)
+        XCTAssertEqual(result.cards.map(\.id), ["same", "cardex", "chub"])
+        XCTAssertEqual(result.totalCount, 10)
     }
     func testAllFailuresRemainAnErrorWithNamesOfFailedSources() async {
         do {
@@ -59,7 +59,7 @@ final class CatalogueSearchTests: XCTestCase {
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("Cardex"))
             XCTAssertTrue(error.localizedDescription.contains("Chub"))
-            XCTAssertTrue(error.localizedDescription.contains("JannyAI"))
+            XCTAssertFalse(error.localizedDescription.contains("JannyAI"))
         }
     }
     func testCancellationStopsAllSourceWork() async throws {
@@ -73,6 +73,34 @@ final class CatalogueSearchTests: XCTestCase {
         await fulfillment(of: [started], timeout: 2); task.cancel()
         do { _ = try await task.value; XCTFail("Cancellation must propagate") }
         catch is CancellationError {} catch { XCTFail("Unexpected error: \(error)") }
+    }
+    func testRemovedSourceNeverRunsEvenForAnOldSavedSelectionOrCursor() async throws {
+        let page = try await CatalogueSearch.run(source: .janny, fetch: { _, _ in
+            XCTFail("Removed discovery must never issue a request"); return .init(cards: [], hasMore: false)
+        })
+        XCTAssertTrue(page.cards.isEmpty)
+        let mixed = try await CatalogueSearch.run(source: .all, positions: [.janny: .init(page: 3)], fetch: { _, _ in
+            XCTFail("Legacy cursors must not reactivate JannyAI"); return .init(cards: [], hasMore: false)
+        })
+        XCTAssertTrue(mixed.cards.isEmpty)
+        XCTAssertEqual(CatalogueSource.allCases, [.all, .cardex, .chub])
+        XCTAssertEqual(CatalogueSource.janny.discoverySelection, .all)
+        XCTAssertEqual(CatalogueSource.source(for: "janny/00000000-0000-4000-8000-000000000001"), .janny, "Preserve provenance for saved imports")
+    }
+    func testPartialOutageStillKeepsCardsAndRetriesOnlyFailedOrUnfinishedSources() async throws {
+        let page = try await CatalogueSearch.run(source: .all, fetch: { source, _ in
+            if source == .chub { throw SearchError.offline }
+            return .init(cards: [self.card("cardex/a")], hasMore: false)
+        })
+        XCTAssertEqual(page.cards.map(\.id), ["cardex/a"])
+        XCTAssertEqual(page.notices.map(\.source), [.chub])
+        XCTAssertEqual(page.continuations, [.chub: .init()])
+        let retry = try await CatalogueSearch.run(source: .all, positions: page.continuations, fetch: { source, position in
+            XCTAssertEqual(source, .chub); XCTAssertEqual(position.page, 1)
+            return .init(cards: [self.card("chub/a")], hasMore: false)
+        })
+        XCTAssertFalse(retry.hasMore)
+        XCTAssertTrue(retry.notices.isEmpty)
     }
     private func card(_ id: String) -> CharacterCard { .init(id: id, name: id) }
     private enum SearchError: Error { case offline }

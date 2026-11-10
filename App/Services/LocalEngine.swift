@@ -35,6 +35,7 @@ import Tokenizers
     func unload() { container = nil; loadedID = nil; status = "Aus dem Arbeitsspeicher entladen" }
     func generate(id: String, prompt: BuiltPrompt, maxTokens: Int,
                   onDelta: @escaping @MainActor (String) -> Bool) async throws -> InferenceResult {
+        let prompt = prompt.chatCompatible
         // A cloud fallback must never trigger a multi-gigabyte download without consent.
         guard loadedID == id, let container else { throw FadenError.notConfigured }
         guard ProcessInfo.processInfo.thermalState != .critical else {

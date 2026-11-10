@@ -8,9 +8,29 @@ import FadenCore
         if #available(iOS 26.4, *) {
             let configuration = AppleCardTranslation.configuration(language: "en")
             XCTAssertEqual(configuration.preferredStrategy, .lowLatency)
+            XCTAssertEqual(AppleCardTranslation.availability().preferredStrategy, configuration.preferredStrategy)
             XCTAssertEqual(configuration.source?.languageCode?.identifier, "en")
             XCTAssertEqual(configuration.target?.languageCode?.identifier, "de")
         }
+    }
+    func testExtendedLanguageSetupAndAvailabilityUseTheSameEngine() {
+        if #available(iOS 26.4, *) {
+            let configuration = AppleCardTranslation.configuration(language: "pl", highFidelity: true)
+            XCTAssertEqual(configuration.preferredStrategy, .highFidelity)
+            XCTAssertEqual(AppleCardTranslation.availability(highFidelity: true).preferredStrategy, configuration.preferredStrategy)
+        }
+    }
+    func testMixedTextChoosesSourceLanguagesPerSegment() {
+        XCTAssertEqual(GermanLanguage.segmentCode("안녕하세요. 반가워요.", fallback: "en"), "ko")
+        XCTAssertEqual(GermanLanguage.segmentCode("The detective waits at the railway station.", fallback: "de"), "en")
+        XCTAssertEqual(GermanLanguage.segmentCode("Hello", fallback: "en"), "en")
+    }
+    func testEmptyGreetingRequiresNoTranslationModels() async throws {
+        let translator = GermanTranslator()
+        let text = try await translator.germanizeGreeting("")
+        XCTAssertEqual(text, "")
+        XCTAssertTrue(translator.missingLanguages.isEmpty)
+        XCTAssertTrue(translator.progress.isEmpty)
     }
 
     func testTypedErrorsRemainDistinctInsteadOfUsingTheSharedNSErrorCode() {

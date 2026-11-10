@@ -39,6 +39,8 @@ struct ChatView: View {
     @State private var writingHelp = false
     @State private var memorySheet = false
     @State private var branchSheet = false
+    @State private var profileCard: CharacterCard?
+    @State private var profileSelection = false
     @State private var editing: Message?
     @State private var rewindMessage: Message?
     @State private var reset = false
@@ -85,15 +87,14 @@ struct ChatView: View {
                             } else if story.activeMessages.last?.role == .user {
                                 Button("Antwort erzeugen", systemImage: "arrow.clockwise") { store.regenerate(storyID) }.buttonStyle(.bordered)
                             }
-                            Color.clear.frame(height: 52).id("bottom")
+                            Color.clear.frame(height: 52).id("bottom").accessibilityElement()
+                                .accessibilityLabel("Ende des Chats").accessibilityIdentifier("chat-visible-end")
                         }.padding(20)
-                            .background { ChatScrollAnchor(edge: scrollEdge, requestID: scrollRequest) }
+                            .background { ChatScrollAnchor(edge: scrollEdge, requestID: scrollRequest, followsLatest: followsLatest, onFollowChanged: { followsLatest = $0 }) }
                     }.scrollDismissesKeyboard(.interactively)
-                        .defaultScrollAnchor(.bottom)
-                        .defaultScrollAnchor(.top, for: .alignment)
                         .onChange(of: story.activeMessages.count) { _, _ in if followsLatest { jump(to: .bottom) } }
+                        .onChange(of: story.activeMessages.last?.content.utf8.count ?? 0) { _, _ in if followsLatest && busy { jump(to: .bottom) } }
                         .onChange(of: busy) { _, _ in if followsLatest { jump(to: .bottom) } }
-                        .onScrollPhaseChange { _, phase in if phase == .interacting { followsLatest = false } }
                         .overlay(alignment: .bottomTrailing) {
                             HStack(spacing: 4) {
                                 Button {
@@ -118,13 +119,17 @@ struct ChatView: View {
                             .accessibilityLabel("Schließen")
                     }
                     ToolbarItem(placement: .principal) {
-                        HStack(spacing: 9) {
-                            if let card = store.character(story.characterID) { CharacterImage(card: card).frame(width: 32, height: 32).clipShape(Circle()) }
-                            Text(story.title).font(.headline).lineLimit(1)
-                        }
+                        Button { showProfile(story) } label: {
+                            HStack(spacing: 9) {
+                                if let card = store.character(story.characterID) { CharacterImage(card: card).frame(width: 32, height: 32).clipShape(Circle()) }
+                                Text(story.title).font(.headline).lineLimit(1)
+                                Image(systemName: "chevron.down").font(.caption2)
+                            }
+                        }.buttonStyle(.plain).accessibilityLabel("Charakterkarte anzeigen").accessibilityIdentifier("chat-character-profile")
                     }
                     ToolbarItem(placement: .primaryAction) {
                         Menu {
+                            Button("Charakterkarte anzeigen", systemImage: "person.crop.rectangle") { showProfile(story) }
                             Button("Erinnerungen & Schreibstil", systemImage: "bookmark") { memorySheet = true }
                             Button("Gesprächszweige", systemImage: "point.topleft.down.to.point.bottomright.curvepath") { branchSheet = true }
                             Button("Rede & Gedanken", systemImage: "text.quote") { writingHelp = true }
@@ -142,6 +147,16 @@ struct ChatView: View {
             else { Color.black.ignoresSafeArea() }
         }
         .preferredColorScheme(.dark)
+        .sheet(item: $profileCard) { card in
+            CharacterDetail(card: card, allowsStartingConversation: false).environment(store).preferredColorScheme(store.archive.menuTheme.colorScheme)
+        }
+        .confirmationDialog("Charakterkarte anzeigen", isPresented: $profileSelection, titleVisibility: .visible) {
+            if let story {
+                ForEach(story.participantIDs, id: \.self) { id in
+                    if let card = store.character(id) { Button(card.name) { profileCard = card } }
+                }
+            }
+        }
         .sheet(isPresented: $memorySheet) { MemoryView(storyID: storyID).environment(store).preferredColorScheme(store.archive.menuTheme.colorScheme) }
         .sheet(isPresented: $branchSheet) { BranchView(storyID: storyID).environment(store).preferredColorScheme(store.archive.menuTheme.colorScheme) }
         .sheet(item: $editing) { message in MessageEditor(message: message, storyID: storyID).environment(store).preferredColorScheme(store.archive.menuTheme.colorScheme) }
@@ -175,7 +190,7 @@ struct ChatView: View {
             else if message.role == .user {
                 roleplayText(message.content).font(.body).lineSpacing(6).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 if RoleplayText.parts(message.content).contains(where: { $0.kind == .thought }) {
-                    Label("Gedanken · nur Erzählwissen", systemImage: "thought.bubble").font(.caption2).foregroundStyle(.secondary)
+                    Label("Privater Gedanke · bleibt auf dem Gerät", systemImage: "thought.bubble").font(.caption2).foregroundStyle(.secondary)
                 }
             } else { Text(.init(message.content)).font(.body).lineSpacing(6).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
             if let model = message.model, message.role == .assistant, !message.content.isEmpty {
@@ -238,6 +253,10 @@ struct ChatView: View {
         }.padding(.horizontal, 16).padding(.vertical, 10)
     }
     private var selectedSpeaker: String? { ["all", "auto"].contains(replyMode) ? nil : replyMode }
+    private func showProfile(_ story: Story) {
+        if story.isMultiCard { profileSelection = true }
+        else { profileCard = store.character(story.characterID) }
+    }
     private func jump(to edge: ChatScrollEdge) { scrollEdge = edge; scrollRequest += 1 }
     private func roleplayText(_ content: String) -> Text {
         RoleplayText.parts(content).reduce(Text("")) { combined, part in
@@ -324,7 +343,7 @@ struct MemoryView: View {
                         }.disabled(note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                     Section("Langer Gesprächsverlauf") {
-                        Text("Alle Nachrichten bleiben gespeichert. Für jede Antwort werden der aktuelle Verlauf, festgehaltene Fakten und passende ältere Auszüge zusammengestellt. Gedanken bleiben dabei privates Erzählwissen, keine hörbare Rede. Nicht jede gespeicherte Nachricht passt gleichzeitig in den Modellkontext.").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Alle Nachrichten bleiben gespeichert. Für jede Antwort werden öffentliche Beiträge, festgehaltene Fakten und passende ältere Auszüge zusammengestellt. Gedanken in Sternchen bleiben auf dem Gerät und werden der Figuren-KI nicht übermittelt. Erinnerungen, die aus solchen Nachrichten markiert wurden, bleiben ebenfalls privat. Nicht jede gespeicherte Nachricht passt gleichzeitig in den Modellkontext.").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
             }.navigationTitle("Erinnerungen").navigationBarTitleDisplayMode(.inline)

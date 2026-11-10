@@ -223,7 +223,8 @@ public struct StyleProfile: Sendable {
         averageWords = own.isEmpty ? 0 : own.reduce(0) { $0 + $1.content.split(whereSeparator: \.isWhitespace).count } / own.count
         usesActions = own.filter { $0.content.contains("*") }.count > own.count / 3
         usesDialogue = own.filter { $0.content.contains("\"") || $0.content.contains("„") }.count > own.count / 3
-        examples = own.suffix(3).map { String($0.content.prefix(500)) }
+        examples = own.suffix(3).map { String(RoleplayText.visibleText($0.content).prefix(500)) }
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
     public var summary: String {
         guard sampleCount > 0 else { return "Dein Stil entsteht mit deinen ersten Nachrichten." }

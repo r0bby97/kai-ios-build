@@ -210,20 +210,21 @@ final class CoreTests: XCTestCase {
             XCTAssertEqual(RoleplayText.parts(quoted).map(\.kind), [.speech])
         }
     }
-    func testPromptLabelsThoughtsInCurrentAndOlderMessages() {
+    func testPromptKeepsPrivateThoughtsLocalInCurrentAndOlderMessages() {
         let card = CharacterCard(name: "Mara")
         var story = Story(character: card)
         story.append(role: .user, content: #"*Mein Geheimnis ist der Rubin.* "Guten Tag.""#)
         let prompt = PromptBuilder.build(character: card, story: story, preferences: .init(), contextTokens: 8192)
         XCTAssertTrue(prompt.system.contains("für JEDE Figur unhörbar"))
-        XCTAssertTrue(prompt.messages.last?.content.contains("gedanke_privat") == true)
+        XCTAssertFalse(prompt.messages.last?.content.contains("gedanke_privat") == true)
         XCTAssertTrue(prompt.messages.last?.content.contains("laut_gesagt") == true)
-        XCTAssertTrue(prompt.messages.last?.content.contains("Rubin") == true, "Narrator must retain plot context without treating it as audible speech")
+        XCTAssertFalse(prompt.messages.last?.content.contains("Rubin") == true, "The character backend must never receive the private thought")
+        XCTAssertTrue(story.activeMessages.last?.content.contains("Rubin") == true, "Keep the original thought locally for the user's story")
         story.append(role: .assistant, content: String(repeating: "Die sichtbare Szene geht weiter. ", count: 300))
         story.append(role: .user, content: #""Was weißt du über den Rubin?""#)
         let older = PromptBuilder.build(character: card, story: story, preferences: .init(), contextTokens: 4096)
-        XCTAssertTrue(older.system.contains("Ältere Auszüge"))
-        XCTAssertTrue(older.system.contains("gedanke_privat"))
+        XCTAssertTrue(older.retrievedCount > 0 || older.messages.contains { $0.content.contains("Guten Tag") })
+        XCTAssertFalse(older.system.contains("Mein Geheimnis"))
     }
     func testEnsembleDetectionDistinguishesCastFromCameos() {
         XCTAssertTrue(CharacterCard(name: "Mara & Elias").cast.isEnsemble)

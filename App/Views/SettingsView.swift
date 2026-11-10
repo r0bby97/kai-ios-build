@@ -251,7 +251,11 @@ struct ConnectionEditor: View {
                     if loading { ProgressView() }
                     if let failure { Text(failure).font(.subheadline).foregroundStyle(.red) }
                     Picker("Kontextfenster", selection: $value.contextTokens) {
-                        ForEach([2048, 4096, 8192, 16384, 32768, 65536], id: \.self) { Text("\($0) Tokens").tag($0) }
+                        ForEach(value.kind == .local ? [2048, 4096, 8192] : [2048, 4096, 8192, 16384, 32768, 65536], id: \.self) { Text("\($0) Tokens").tag($0) }
+                    }
+                    if value.kind == .local {
+                        Text("Das Kontextfenster ist das Arbeitsgedächtnis für Karte und Verlauf. 8.192 Tokens behalten mehr Text als 4.096, benötigen aber mehr Arbeitsspeicher und können Antworten verlangsamen. Es werden dafür keine neuen Modellgewichte geladen. Die Fähigkeiten des kleinen Modells ändern sich dadurch nicht.")
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 } header: { Text("Modelle · zuerst die oberste ID") }
                 footer: {
@@ -287,7 +291,11 @@ struct ConnectionEditor: View {
                 }
             }.navigationTitle(value.apiPreset?.title ?? value.kind.title).navigationBarTitleDisplayMode(.inline)
                 .sheet(isPresented: $diagnosticsSheet) { DiagnosticsView().environment(store) }
-                .onAppear { value = original; key = Keychain.string("provider.\(original.id)"); modelText = original.models.joined(separator: "\n"); email = store.auth.credential(original.id)?.email ?? "" }
+                .onAppear {
+                    value = original
+                    if value.kind == .local { value.contextTokens = min(8192, value.contextTokens) }
+                    key = Keychain.string("provider.\(original.id)"); modelText = original.models.joined(separator: "\n"); email = store.auth.credential(original.id)?.email ?? ""
+                }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } }
                     ToolbarItem(placement: .confirmationAction) { Button("Speichern") { save() }.disabled(value.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }

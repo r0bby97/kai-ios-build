@@ -11,7 +11,7 @@ struct WritingHelpView: View {
                 }
                 Section("Private Gedanken") {
                     Text(verbatim: "*Ich bin mir nicht sicher, ob ich ihr vertraue.*").italic()
-                    Text("Diese Information dient der Erzählung. Die Figuren hören sie nicht und sollen sie weder beantworten noch als eigenes Wissen verwenden. Auch ein Zitat innerhalb eines Gedankens bleibt privat.")
+                    Text("Diese Gedanken bleiben als deine Erzählnotizen im lokalen Verlauf. Ihr Text wird nicht an die Figuren-KI geschickt, auch nicht über Stilbeispiele oder automatisch verknüpfte Erinnerungen. Ein Zitat innerhalb eines Gedankens bleibt ebenfalls privat.")
                 }
                 Section("Erzählkontext") {
                     Text("Ich stelle die Tasse auf den Tisch.")

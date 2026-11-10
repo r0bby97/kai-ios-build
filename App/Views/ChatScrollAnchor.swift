@@ -8,6 +8,8 @@ enum ChatScrollEdge: Equatable { case top, bottom }
 struct ChatScrollAnchor: UIViewRepresentable {
     let edge: ChatScrollEdge
     let requestID: Int
+    let followsLatest: Bool
+    var onFollowChanged: (Bool) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeUIView(context: Context) -> Probe {
@@ -20,7 +22,8 @@ struct ChatScrollAnchor: UIViewRepresentable {
         return view
     }
     func updateUIView(_ view: Probe, context: Context) {
-        context.coordinator.request(edge: edge, id: requestID, from: view)
+        context.coordinator.onFollowChanged = onFollowChanged
+        context.coordinator.request(edge: edge, id: requestID, followsLatest: followsLatest, from: view)
     }
     static func dismantleUIView(_ view: Probe, coordinator: Coordinator) { coordinator.disconnect() }
 
@@ -37,10 +40,18 @@ struct ChatScrollAnchor: UIViewRepresentable {
         private var edge = ChatScrollEdge.bottom
         private var active = false
         private var queued = false
+        private var following = true
+        var onFollowChanged: ((Bool) -> Void)?
 
-        func request(edge: ChatScrollEdge, id: Int, from view: UIView) {
+        func request(edge: ChatScrollEdge, id: Int, followsLatest: Bool, from view: UIView) {
+            let wasFollowing = following
+            following = followsLatest
             if lastRequest != id {
                 lastRequest = id; self.edge = edge; active = true
+            } else if followsLatest {
+                self.edge = .bottom; active = true
+            } else if wasFollowing {
+                active = false
             }
             // The representable can update before SwiftUI attaches its scroll view.
             DispatchQueue.main.async { [weak self, weak view] in
@@ -56,7 +67,10 @@ struct ChatScrollAnchor: UIViewRepresentable {
             scrollView = found
             found.panGestureRecognizer.addTarget(self, action: #selector(userPanned(_:)))
             sizeObservation = found.observe(\.contentSize, options: [.new]) { [weak self] _, _ in self?.correctWhenReady() }
-            boundsObservation = found.observe(\.bounds, options: [.new]) { [weak self] _, _ in self?.correctWhenReady() }
+            boundsObservation = found.observe(\.bounds, options: [.new]) { [weak self] scroll, _ in
+                self?.observeReadingPosition(scroll)
+                self?.correctWhenReady()
+            }
             correctWhenReady()
         }
         func disconnect() {
@@ -65,7 +79,25 @@ struct ChatScrollAnchor: UIViewRepresentable {
             scrollView = nil
         }
         @objc private func userPanned(_ recognizer: UIPanGestureRecognizer) {
-            if recognizer.state == .began || recognizer.state == .changed { active = false }
+            if recognizer.state == .began || recognizer.state == .changed {
+                active = false
+                setFollowing(false)
+            } else if recognizer.state == .ended, let scrollView { observeReadingPosition(scrollView, ended: true) }
+        }
+        private func observeReadingPosition(_ scroll: UIScrollView, ended: Bool = false) {
+            guard ended || scroll.isDragging || scroll.isDecelerating else { return }
+            let inset = scroll.adjustedContentInset
+            let bottom = max(-inset.top, scroll.contentSize.height - scroll.bounds.height + inset.bottom)
+            if !scroll.isDragging && bottom - scroll.contentOffset.y < 70 {
+                edge = .bottom; active = true; setFollowing(true)
+            } else if bottom - scroll.contentOffset.y >= 70 {
+                active = false; setFollowing(false)
+            }
+        }
+        private func setFollowing(_ value: Bool) {
+            guard following != value else { return }
+            following = value
+            DispatchQueue.main.async { [weak self] in self?.onFollowChanged?(value) }
         }
         private func correctWhenReady() {
             guard active, !queued else { return }

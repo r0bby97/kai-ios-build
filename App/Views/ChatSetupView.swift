@@ -75,8 +75,9 @@ struct ChatSetupView: View {
                     }
                 }
                 TextEditor(text: $greeting).frame(minHeight: 120).accessibilityLabel("Gesprächseinstieg")
+                Button("Ohne Begrüßung starten") { greeting = "" }.accessibilityIdentifier("clear-start-greeting")
             } header: { Text("Gesprächseinstieg") }
-            footer: { Text("Dieser Text eröffnet die Geschichte. Passe ihn an deine Szene an oder lass ihn leer, um selbst zu beginnen. Persona und Szene werden für dieses Gespräch gespeichert.") }
+            footer: { Text("Nur dieser ausgewählte Einstieg wird vor dem Start ins Deutsche übersetzt. Lange Karteneigenschaften und andere Sprachen werden getrennt vorbereitet. Du kannst den Einstieg leer lassen und selbst beginnen; dafür sind keine Übersetzungspakete nötig. Persona und Szene bleiben für dieses Gespräch gespeichert.") }
         }
         .navigationTitle(groupMode ? "Gruppenchat vorbereiten" : containsEnsemble ? "Gruppenkarte vorbereiten" : "Gespräch vorbereiten").navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {

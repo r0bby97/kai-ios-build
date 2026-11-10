@@ -62,8 +62,10 @@ final class AIHordeTests: XCTestCase {
         XCTAssertEqual(first["max_tokens"] as? Int, 64)
         XCTAssertEqual(second["max_tokens"] as? Int, 32)
         XCTAssertEqual(first["messages"] as? [[String: String]], second["messages"] as? [[String: String]])
-        XCTAssertEqual((first["horde"] as? [String: Any])?["max_context_length"] as? Int,
-                       (second["horde"] as? [String: Any])?["max_context_length"] as? Int)
+        let firstContext = try XCTUnwrap((first["horde"] as? [String: Any])?["max_context_length"] as? Int)
+        let secondContext = try XCTUnwrap((second["horde"] as? [String: Any])?["max_context_length"] as? Int)
+        XCTAssertEqual(secondContext, max(256, prompt.estimatedTokens + 192 + 32))
+        XCTAssertLessThanOrEqual(secondContext, firstContext, "Worker budget follows the shorter output while all messages stay identical")
     }
     func testSmallerWorkerCanGiveAShorterReplyWithoutDroppingThePersona() async throws {
         _ = try await client(.smallOutput).generate(model: HordeCodec.automaticModel, key: "", prompt: prompt, maxTokens: 64, contextTokens: 4096)
@@ -114,11 +116,40 @@ final class AIHordeTests: XCTestCase {
         let workers = try HordeCodec.workers(JSONSerialization.data(withJSONObject: rows))
         XCTAssertEqual(workers.count, 1)
     }
+    func testNoEligibleWorkerIsCapacityAndNotAnInvalidKey() {
+        let failure = HordeCodec.failure(status: 403, data: Data(#"{"rc":"NoEligibleWorker","message":"private upstream text"}"#.utf8))
+        XCTAssertFalse(failure.blocksConnection)
+        XCTAssertTrue(failure.retryable)
+        XCTAssertTrue(failure.message.contains("keinen passenden Chat-Rechner"))
+        XCTAssertFalse(failure.message.contains("private upstream text"))
+        let denied = HordeCodec.failure(status: 403, data: Data(#"{"rc":"InvalidAPIKey"}"#.utf8))
+        XCTAssertTrue(denied.blocksConnection)
+    }
+    func testStaleCapacityIsRefreshedOnceWithoutDroppingAnyMessages() async throws {
+        _ = try await client(.staleCapacity).generate(model: HordeCodec.automaticModel, key: "", prompt: prompt, maxTokens: 64, contextTokens: 4096)
+        XCTAssertEqual(HordeFixture.posts.count, 2)
+        let first = try object(HordeFixture.posts[0]), second = try object(HordeFixture.posts[1])
+        XCTAssertEqual(first["messages"] as? [[String: String]], second["messages"] as? [[String: String]])
+        XCTAssertEqual(first["max_tokens"] as? Int, second["max_tokens"] as? Int)
+        XCTAssertNotEqual((first["horde"] as? [String: Any])?["operation_key"] as? String, (second["horde"] as? [String: Any])?["operation_key"] as? String)
+    }
+    func testPersistentCapacityFailureIsBoundedAndStillAllowsOtherProviders() async throws {
+        do {
+            _ = try await client(.noEligible).generate(model: HordeCodec.automaticModel, key: "", prompt: prompt, maxTokens: 64, contextTokens: 4096)
+            XCTFail("Unavailable capacity must not become a fake success")
+        } catch let failure as HordeFailure {
+            XCTAssertEqual(failure.code, "NoEligibleWorker")
+            XCTAssertEqual(failure.httpStatus, 403)
+            XCTAssertFalse(failure.blocksConnection)
+        }
+        XCTAssertEqual(HordeFixture.posts.count, 2)
+        XCTAssertEqual(HordeFixture.deleteCount, 0, "No job was accepted")
+    }
     private func object(_ data: Data) throws -> [String: Any] { try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]) }
 }
 
 private final class HordeFixture: URLProtocol {
-    enum Mode { case success, waiting, lostReceipt, allowance, rateLimit, smallWorker, smallOutput, filtered, empty, wrongModel, truncated, temporaryStatusFailure }
+    enum Mode { case success, waiting, lostReceipt, allowance, rateLimit, smallWorker, smallOutput, filtered, empty, wrongModel, truncated, temporaryStatusFailure, staleCapacity, noEligible }
     static let model = "koboldcpp/mini-magnum-12b-v1.1"
     private static let lock = NSLock()
     private static var mode = Mode.success
@@ -150,7 +181,8 @@ private final class HordeFixture: URLProtocol {
                 let body = try readBody(request)
                 Self.lock.lock(); Self.capturedPosts.append(body); Self.capturedKeys.append(request.value(forHTTPHeaderField: "apikey") ?? ""); let count = Self.capturedPosts.count; Self.lock.unlock()
                 if mode == .lostReceipt && count == 1 { client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost)); return }
-                if mode == .rateLimit { status = 429; data = Data(#"{"rc":"TooManyParallelRequests","message":"limited"}"#.utf8) }
+                if mode == .noEligible || mode == .staleCapacity && count == 1 { status = 403; data = Data(#"{"rc":"NoEligibleWorker"}"#.utf8) }
+                else if mode == .rateLimit { status = 429; data = Data(#"{"rc":"TooManyParallelRequests","message":"limited"}"#.utf8) }
                 else if mode == .allowance && count == 1 {
                     status = 400; data = Data(#"{"rc":"KudosUpfront","message":"The workers currently serve up to 32 tokens without kudos held upfront."}"#.utf8)
                 } else { status = 202; data = Data(#"{"id":"00000000-0000-4000-8000-000000000002"}"#.utf8) }

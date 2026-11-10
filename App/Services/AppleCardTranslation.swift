@@ -4,24 +4,37 @@ import Translation
 /// Setup and translation must select the same engine. On newer iPhones Apple's
 /// default can be highFidelity, whose installed assets do not prepare lowLatency.
 enum AppleCardTranslation {
-    static func configuration(language: String) -> TranslationSession.Configuration {
+    static func configuration(language: String, highFidelity: Bool = false) -> TranslationSession.Configuration {
         let source = Locale.Language(identifier: language)
         let target = Locale.Language(identifier: "de")
         if #available(iOS 26.4, *) {
-            return .init(source: source, target: target, preferredStrategy: .lowLatency)
+            return .init(source: source, target: target, preferredStrategy: highFidelity ? .highFidelity : .lowLatency)
         }
         return .init(source: source, target: target)
     }
 
     @available(iOS 26.0, *)
-    static func installedSession(language: String) -> TranslationSession {
+    static func installedSession(language: String, highFidelity: Bool = false) -> TranslationSession {
         let source = Locale.Language(identifier: language)
         let target = Locale.Language(identifier: "de")
         if #available(iOS 26.4, *) {
             return .init(installedSource: source, target: target,
-                         preferredStrategy: configuration(language: language).preferredStrategy)
+                         preferredStrategy: configuration(language: language, highFidelity: highFidelity).preferredStrategy)
         }
         return .init(installedSource: source, target: target)
+    }
+    static func availability(highFidelity: Bool = false) -> LanguageAvailability {
+        if #available(iOS 26.4, *) { return .init(preferredStrategy: highFidelity ? .highFidelity : .lowLatency) }
+        return .init()
+    }
+    static func resolve(language: String) async -> (status: LanguageAvailability.Status, highFidelity: Bool) {
+        let source = Locale.Language(identifier: language), target = Locale.Language(identifier: "de")
+        let fast = await availability().status(from: source, to: target)
+        if #available(iOS 26.4, *), fast == .unsupported {
+            let extended = await availability(highFidelity: true).status(from: source, to: target)
+            if extended != .unsupported { return (extended, true) }
+        }
+        return (fast, false)
     }
 
     enum Failure: String {

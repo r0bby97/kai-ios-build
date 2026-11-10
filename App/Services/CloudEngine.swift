@@ -11,7 +11,7 @@ struct ProviderFailure: LocalizedError {
     var diagnostic: InferenceDiagnostic?
     var errorDescription: String? { text }
 }
-struct RemoteModel: Identifiable {
+struct RemoteModel: Identifiable, Sendable {
     var id: String
     var name: String
     var isFree: Bool
@@ -21,6 +21,16 @@ struct RemoteModel: Identifiable {
 }
 
 enum CloudEngine {
+    @MainActor private static var modelCache: [String: (date: Date, models: [RemoteModel])] = [:]
+    @MainActor static func contextWindow(connection: Connection, model: String) -> Int {
+        let configured = connection.kind == .local ? min(connection.contextTokens, 8192) : connection.contextTokens
+        let base = connection.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if let cached = modelCache[base], Date().timeIntervalSince(cached.date) < 3600,
+           let actual = cached.models.first(where: { $0.id == model && $0.context > 0 })?.context {
+            return min(configured, actual)
+        }
+        return configured
+    }
     static func models(connection: Connection, key: String, session: URLSession = HTTP.session) async throws -> [RemoteModel] {
         if connection.kind == .aiHorde {
             _ = try validatedBase(connection)
@@ -39,7 +49,7 @@ enum CloudEngine {
         try checkStatus(response, data: data)
         let object = try HTTP.object(data)
         let models = object["models"] as? [[String: Any]] ?? object["data"] as? [[String: Any]] ?? []
-        return models.compactMap { item in
+        let result = models.compactMap { item -> RemoteModel? in
             guard let id = item["slug"] as? String ?? item["id"] as? String else { return nil }
             if let visibility = item["visibility"] as? String, visibility != "list" { return nil }
             let pricing = item["pricing"] as? [String: Any] ?? [:]
@@ -50,6 +60,8 @@ enum CloudEngine {
             let reasoning = (item["supported_parameters"] as? [String] ?? []).contains("reasoning")
             return RemoteModel(id: id, name: item["display_name"] as? String ?? item["name"] as? String ?? id, isFree: free, supportsText: text, reasoning: reasoning, context: item["context_length"] as? Int ?? 0)
         }
+        await MainActor.run { modelCache[base.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/"))] = (Date(), result) }
+        return result
     }
 
     @MainActor private static var freeCache: (date: Date, models: [RemoteModel])?
@@ -97,6 +109,11 @@ enum CloudEngine {
                 var errorData = Data()
                 for try await byte in bytes { errorData.append(byte); if errorData.count >= 8192 { break } }
                 report.bytes = errorData.count; report.errorCode = "http_\(response.statusCode)"
+                if response.statusCode == 401, connection.kind == .openRouter,
+                   base.host == "openrouter.ai", try await openRouterKeyIsValid(base: base, key: key, session: session) {
+                    report.errorCode = "model_access_denied_key_valid"
+                    throw ProviderFailure(text: "OpenRouter bestätigt den API-Schlüssel, aber dieses Gratis-Modell verweigert den Zugriff (HTTP 401). Kai kann ein anderes freigegebenes Modell versuchen.")
+                }
                 try checkStatus(response, data: errorData)
             }
             var text = ""; var completed = false; var stopped = false; var finalCandidate = ""
@@ -229,14 +246,31 @@ enum CloudEngine {
     private static func checkStatus(_ response: URLResponse, data: Data) throws {
         guard let status = (response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) else { return }
         switch status {
-        case 401, 403: throw ProviderFailure(text: "Anmeldung oder API-Schlüssel wird nicht akzeptiert.", blocksConnection: true)
+        case 401, 403: throw ProviderFailure(text: "Der Anbieter verweigert den Zugriff (HTTP \(status)). Anmeldung, API-Schlüssel oder Modellberechtigung prüfen.", blocksConnection: true)
         case 402: throw ProviderFailure(text: "Das Guthaben oder Kontingent dieses Kontos reicht nicht aus.", blocksConnection: true)
         case 429:
             // Free-tier daily limits span the account, not an individual model.
             throw ProviderFailure(text: "Der Anbieter hat sein Nutzungslimit erreicht. Bitte bis zur Freigabe warten.", blocksConnection: true)
-        case 400, 404, 422: throw ProviderFailure(text: "Modell oder Anfrage wird vom Anbieter nicht unterstützt (\(status)).")
+        case 400, 404, 422:
+            let reason = ProviderRequestProblem.describe(data)
+            throw ProviderFailure(text: "\(reason) (HTTP \(status)).")
         case 500...599: throw ProviderFailure(text: "Der Anbieter ist vorübergehend nicht verfügbar (\(status)).")
         default: throw ProviderFailure(text: "Der Anbieter antwortet mit HTTP \(status).", retryable: false)
+        }
+    }
+    private static func openRouterKeyIsValid(base: URL, key: String, session: URLSession) async throws -> Bool {
+        var request = URLRequest(url: base.appendingPathComponent("key"))
+        request.timeoutInterval = 10
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        do {
+            let (_, response) = try await session.data(for: request)
+            try Task.checkCancellation()
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            if Task.isCancelled { throw CancellationError() }
+            // An unavailable validation endpoint cannot prove model-only denial.
+            // Preserve the original HTTP 401 instead of replacing it with a probe error.
+            return false
         }
     }
 }

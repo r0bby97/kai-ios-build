@@ -2,6 +2,10 @@ import Foundation
 
 public enum CharacterGenre: String, CaseIterable, Sendable {
     case all, omegaverse, fantasy, everyday, noir, scienceFiction, mystery, adventure, romance, horror, guideverse, bdsm
+    public static var allCases: [CharacterGenre] {
+        [.all] + [omegaverse, fantasy, everyday, noir, scienceFiction, mystery, adventure, romance, horror, guideverse, bdsm]
+            .sorted { $0.title.compare($1.title, options: [.caseInsensitive], locale: Locale(identifier: "de_DE")) == .orderedAscending }
+    }
     public var title: String {
         switch self {
         case .all: "Alle"
@@ -64,11 +68,16 @@ public enum OmegaverseSearch {
 }
 
 public enum CatalogueSource: String, CaseIterable, Sendable {
+    // The legacy identifier is retained so saved cards keep their provenance.
     case all, cardex, chub, janny
+    public static var allCases: [CatalogueSource] { [.all, .cardex, .chub] }
     public var title: String {
         switch self { case .all: "Alle"; case .cardex: "Cardex"; case .chub: "Chub"; case .janny: "JannyAI" }
     }
-    public var sources: [CatalogueSource] { self == .all ? [.cardex, .chub, .janny] : [self] }
+    public var sources: [CatalogueSource] {
+        switch self { case .all: [.cardex, .chub]; case .janny: []; default: [self] }
+    }
+    public var discoverySelection: CatalogueSource { self == .janny ? .all : self }
     public func sortDescription(query: String) -> String {
         switch self {
         case .all: "Gemischte Quellen · Rangfolge je Quelle"
@@ -79,10 +88,10 @@ public enum CatalogueSource: String, CaseIterable, Sendable {
     }
     public var discoveryNote: String {
         switch self {
-        case .all: "Karten aus Cardex, Chub und JannyAI. Treffer erscheinen, sobald eine Quelle antwortet. Eine ausgefallene Quelle hält die anderen nicht auf. Beliebtheitszahlen verschiedener Quellen sind nicht direkt vergleichbar."
+        case .all: "Karten aus Cardex und Chub. Treffer erscheinen, sobald eine Quelle antwortet. Eine ausgefallene Quelle hält die andere nicht auf. Beliebtheitszahlen verschiedener Quellen sind nicht direkt vergleichbar."
         case .cardex: "Archivierte Originalkarten mit direktem Import von Definition und Kartenbild. Ältere Archivbilder können verkleinert sein. Nicht jede Karte ist vollständig erhalten."
         case .chub: "Genres werden direkt im Katalog gesucht. Weitere Treffer lassen sich nachladen."
-        case .janny: "JannyAI liefert Suchvorschauen. Der direkte Kartendownload kann an Website-Prüfungen scheitern; Cardex und Chub bieten weitere Karten zum direkten Import."
+        case .janny: "Diese Quelle ist aus der Online-Suche entfernt. Bereits gespeicherte Karten behalten ihren Quellverweis."
         }
     }
     public static func source(for id: String) -> CatalogueSource? {
@@ -90,6 +99,31 @@ public enum CatalogueSource: String, CaseIterable, Sendable {
         if id.hasPrefix("chub/") { return .chub }
         if id.hasPrefix("janny/"), UUID(uuidString: String(id.dropFirst(6))) != nil { return .janny }
         return nil
+    }
+}
+
+/// Uses explicit character tags, never the user's POV or an inferred appearance.
+/// Unknown and mixed cards belong to the additional category, not a guessed gender.
+public enum CharacterGenderFilter: String, CaseIterable, Sendable {
+    case all, male, female, other
+    public var title: String {
+        switch self { case .all: "Alle"; case .male: "Männlich"; case .female: "Weiblich"; case .other: "Divers & Weitere" }
+    }
+    public var catalogueTag: String? {
+        switch self { case .male: "male"; case .female: "female"; default: nil }
+    }
+    public func matches(_ card: CharacterCard) -> Bool { self == .all || Self.classification(card) == self }
+    public static func classification(_ card: CharacterCard) -> CharacterGenderFilter {
+        let tags = Set(card.tags.map { $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "de_DE"))
+            .replacingOccurrences(of: #"[\s_-]+"#, with: " ", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines) })
+        let male: Set<String> = ["male", "males", "mannlich", "maennlich", "mann", "man", "male character", "male characters", "male bot", "trans male", "trans man", "transgender male", "ftm"]
+        let female: Set<String> = ["female", "females", "weiblich", "frau", "woman", "female character", "female characters", "female bot", "trans female", "trans woman", "transgender female", "mtf"]
+        let diverse: Set<String> = ["nonbinary", "non binary", "nichtbinar", "nicht binar", "divers", "diverse", "enby", "agender", "genderfluid", "gender fluid", "genderqueer", "gender queer"]
+        if !tags.isDisjoint(with: diverse) { return .other }
+        let hasMale = !tags.isDisjoint(with: male), hasFemale = !tags.isDisjoint(with: female)
+        if hasMale && !hasFemale { return .male }
+        if hasFemale && !hasMale { return .female }
+        return .other
     }
 }
 

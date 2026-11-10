@@ -4,9 +4,10 @@ import FadenCore
 
 struct LibraryView: View {
     @Environment(AppStore.self) private var store
-    @State private var source = 0
+    @State private var source = 1
     @State private var query = ""
     @State private var genre = CharacterGenre.all
+    @State private var gender = CharacterGenderFilter.all
     @State private var kind = CharacterKindFilter.all
     @State private var favoritesOnly = false
     @State private var online: [CharacterCard] = []
@@ -27,28 +28,26 @@ struct LibraryView: View {
     @State private var importing = false
     @State private var creating = false
     @State private var groupCreating = false
-    @State private var catalogueBrowser = false
     @State private var showingFilters = false
     @Namespace private var genreSelection
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var catalogueSource: CatalogueSource { CatalogueSource(rawValue: catalogueSourceRaw) ?? .all }
-    private var jannyBrowserURL: URL {
-        var components = URLComponents(string: "https://jannyai.com/characters/search")!
-        components.queryItems = [.init(name: "search", value: JannyCatalogueCodec.query(query, genre: genre))]
-        return components.url!
-    }
+    private var catalogueSource: CatalogueSource { (CatalogueSource(rawValue: catalogueSourceRaw) ?? .all).discoverySelection }
     private var filtered: [CharacterCard] {
         let cards = source == 0 ? store.libraryCharacters : online
         return cards.filter { card in
-            (source == 1 || genre.matches(card)) && kind.matches(card) && (!favoritesOnly || store.archive.favoriteIDs.contains(card.id)) && (source == 1 || query.isEmpty ||
+            (source == 1 || genre.matches(card)) && gender.matches(card) && kind.matches(card) && (!favoritesOnly || store.archive.favoriteIDs.contains(card.id)) && (source == 1 || query.isEmpty ||
             OmegaverseSearch.normalized(card.name + " " + card.tagline + " " + card.creator + " " + card.tags.joined(separator: " ")).localizedCaseInsensitiveContains(OmegaverseSearch.normalized(query)))
         }
     }
     private var featured: CharacterCard? {
-        source == 0 && query.isEmpty && genre == .all && kind == .all && !favoritesOnly ? filtered.first : nil
+        source == 0 && query.isEmpty && genre == .all && gender == .all && kind == .all && !favoritesOnly ? filtered.first : nil
     }
     private var rows: [CharacterCard] { filtered.filter { $0.id != featured?.id } }
-    private var activeFilterCount: Int { (kind == .all ? 0 : 1) + (favoritesOnly ? 1 : 0) }
+    private var activeFilterCount: Int { (gender == .all ? 0 : 1) + (kind == .all ? 0 : 1) + (favoritesOnly ? 1 : 0) }
+    private var filterSummary: String {
+        [gender == .all ? nil : gender.title, genre == .all ? nil : genre.title,
+         kind == .all ? nil : kind.title, favoritesOnly ? "Favoriten" : nil].compactMap { $0 }.joined(separator: " · ")
+    }
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -63,13 +62,31 @@ struct LibraryView: View {
                             ForEach(CatalogueSource.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
                         }.pickerStyle(.segmented).accessibilityIdentifier("catalogue-source")
                     }
-                    genreBar
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Figuren").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Picker("Geschlecht der Figuren", selection: $gender) {
+                            ForEach(CharacterGenderFilter.allCases, id: \.self) { item in
+                                Text(item == .other ? "Divers+" : item.title).tag(item)
+                            }
+                        }.pickerStyle(.segmented).accessibilityIdentifier("character-gender")
+                    }
+                    if gender == .other {
+                        Text("Diverse, gemischte oder nicht angegebene Geschlechter. Die Zuordnung verwendet die Angaben der Karte, nicht deine Rolle im Chat.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Genre").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        genreBar
+                    }
                     if source == 0 { preparationStatus }
                     if genre != .all || activeFilterCount > 0 {
                         HStack {
-                            Text("\(filtered.count) passende geladene Karten").font(.caption).foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(filterSummary).font(.subheadline.weight(.medium))
+                                Text("\(filtered.count) passende geladene Karten").font(.caption).foregroundStyle(.secondary)
+                            }
                             Spacer()
-                            Button("Zurücksetzen") { genre = .all; kind = .all; favoritesOnly = false }.font(.caption)
+                            Button("Zurücksetzen") { genre = .all; gender = .all; kind = .all; favoritesOnly = false }.font(.caption)
                         }
                     }
                     if source == 1 { catalogueSummary }
@@ -86,7 +103,6 @@ struct LibraryView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(catalogueError).font(.subheadline).foregroundStyle(.secondary)
                             Button("Erneut laden") { Task { await load(reset: true) } }
-                            if catalogueSource == .janny { Button("JannyAI im Browser öffnen") { catalogueBrowser = true } }
                         }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(Palette.surface, in: RoundedRectangle(cornerRadius: 18))
                     }
                     if let featured {
@@ -107,21 +123,21 @@ struct LibraryView: View {
                     }
                     if source == 1 {
                         DisclosureGroup("Hinweise zur Quelle") {
-                            Text(catalogueSource.discoveryNote + " Kartentyp und Favoriten filtern die geladenen Treffer.")
+                            Text(catalogueSource.discoveryNote + " Die Geschlechtszuordnung nutzt Karten-Tags. Divers+ sowie Kartentyp und Favoriten filtern geladene Treffer; weitere Karten lassen sich nachladen.")
                                 .font(.caption).foregroundStyle(.secondary)
-                            if catalogueSource == .janny { Button("JannyAI im Browser öffnen") { catalogueBrowser = true } }
                         }.font(.subheadline)
                     }
                 }.padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 28)
             }
             .background(Palette.background).navigationTitle("Kai").navigationBarTitleDisplayMode(.inline)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Charaktere suchen")
-            .task(id: "\(source):\(query):\(includeAdult):\(genre.rawValue):\(catalogueSourceRaw)") {
+            .task(id: "\(source):\(query):\(includeAdult):\(genre.rawValue):\(gender.rawValue):\(catalogueSourceRaw)") {
                 guard source == 1 else { return }
                 do { try await Task.sleep(for: .milliseconds(350)); try Task.checkCancellation(); await load(reset: true) } catch {}
             }
             .refreshable { if source == 1 { await load(reset: true) } else { await store.preloadCatalogue(force: true) } }
             .onDisappear { previewTranslationTask?.cancel() }
+            .onAppear { if CatalogueSource(rawValue: catalogueSourceRaw) == .janny { catalogueSourceRaw = CatalogueSource.all.rawValue } }
             .toolbar {
                 ToolbarItem(placement: .principal) { KaiBrand() }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -140,9 +156,6 @@ struct LibraryView: View {
             .sheet(isPresented: $languageSetup) { TranslationSetupView().environment(store) }
             .sheet(item: $selected) { card in CharacterDetail(card: card).environment(store) }
             .sheet(isPresented: $creating) { CharacterEditor().environment(store) }
-            .sheet(isPresented: $catalogueBrowser) {
-                CatalogueBrowser(url: jannyBrowserURL) { file, _ in store.importFile(file) }
-            }
             .sheet(isPresented: $groupCreating) {
                 NavigationStack {
                     ChatSetupView(initial: [], groupMode: true) { config in
@@ -157,7 +170,7 @@ struct LibraryView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Entdecken").font(.system(.title, weight: .bold))
-                Text(source == 0 ? "\(store.libraryCharacters.count) Charaktere in deiner Bibliothek" : catalogueSource == .all ? "Cardex · Chub · JannyAI" : "Charaktere aus \(catalogueSource.title)")
+                Text(source == 0 ? "\(store.libraryCharacters.count) Charaktere in deiner Bibliothek" : catalogueSource == .all ? "Cardex · Chub" : "Charaktere aus \(catalogueSource.title)")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -201,10 +214,11 @@ struct LibraryView: View {
                                 if genre == item { KaiGenreSelection(namespace: genreSelection) }
                                 else { Capsule().fill(Color.primary.opacity(0.045)) }
                             }.contentShape(Capsule())
-                    }.buttonStyle(.plain).accessibilityAddTraits(genre == item ? .isSelected : [])
+                    }.buttonStyle(.plain).accessibilityIdentifier("genre-" + item.rawValue)
+                        .accessibilityAddTraits(genre == item ? .isSelected : [])
                 }
             }
-        }.animation(KaiMotion.selection(reduceMotion: reduceMotion), value: genre)
+        }.accessibilityIdentifier("genre-tabs").animation(KaiMotion.selection(reduceMotion: reduceMotion), value: genre)
     }
     private var catalogueSummary: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -229,8 +243,8 @@ struct LibraryView: View {
                     Toggle("Nur Favoriten", isOn: $favoritesOnly)
                 }
                 Section {
-                    Text("Genre und Suche bleiben in der Übersicht erreichbar. Bei Online-Karten gelten Kartentyp und Favoriten für die bereits geladenen Treffer.").font(.subheadline).foregroundStyle(.secondary)
-                    Button("Alle Filter zurücksetzen") { kind = .all; favoritesOnly = false; genre = .all }
+                    Text("Geschlecht, Genre und Suche lassen sich in der Übersicht kombinieren. Karten ohne klare Geschlechtsangabe stehen unter Divers+. Bei Online-Karten gelten Kartentyp und Favoriten für die bereits geladenen Treffer.").font(.subheadline).foregroundStyle(.secondary)
+                    Button("Alle Filter zurücksetzen") { kind = .all; favoritesOnly = false; genre = .all; gender = .all }
                 }
             }.navigationTitle("Suchfilter").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { showingFilters = false } } }
@@ -247,7 +261,7 @@ struct LibraryView: View {
     }
     private func load(reset: Bool, retryFailuresOnly: Bool = false) async {
         if loading && !reset { return }
-        let requestedQuery = query; let requestedAdult = includeAdult; let requestedGenre = genre; let requestedSource = catalogueSource
+        let requestedQuery = query; let requestedAdult = includeAdult; let requestedGenre = genre; let requestedSource = catalogueSource; let requestedGender = gender
         let requestID = UUID(); loadID = requestID
         previewTranslationTask?.cancel(); previewTranslationTask = nil
         loading = true; catalogueError = nil
@@ -259,10 +273,10 @@ struct LibraryView: View {
         defer { if loadID == requestID { loading = false } }
         let nextPage = reset ? 1 : page + 1
         do {
-            let result = try await Catalogue.search(query: requestedQuery, page: nextPage, includeAdult: requestedAdult, genre: requestedGenre, source: requestedSource, positions: positions, updated: { partial in
+            let result = try await Catalogue.search(query: requestedQuery, page: nextPage, includeAdult: requestedAdult, genre: requestedGenre, source: requestedSource, gender: requestedGender, positions: positions, updated: { partial in
                 await MainActor.run {
                     guard loadID == requestID, source == 1, query == requestedQuery, includeAdult == requestedAdult,
-                          genre == requestedGenre, catalogueSource == requestedSource else { return }
+                          genre == requestedGenre, gender == requestedGender, catalogueSource == requestedSource else { return }
                     let previews = cataloguePreviews(partial.cards)
                     let ids = Set(previousCards.map(\.id))
                     online = cataloguePreviews(previousCards) + previews.filter { !ids.contains($0.id) }
@@ -271,7 +285,7 @@ struct LibraryView: View {
                 }
             })
             try Task.checkCancellation()
-            guard loadID == requestID, query == requestedQuery, includeAdult == requestedAdult, genre == requestedGenre, catalogueSource == requestedSource else { return }
+            guard loadID == requestID, query == requestedQuery, includeAdult == requestedAdult, genre == requestedGenre, gender == requestedGender, catalogueSource == requestedSource else { return }
             let previews = cataloguePreviews(result.cards)
             let ids = Set(previousCards.map(\.id)); online = cataloguePreviews(previousCards) + previews.filter { !ids.contains($0.id) }
             translatePreviews(requestID: requestID)
@@ -370,17 +384,22 @@ struct CharacterDetail: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State var card: CharacterCard
+    var allowsStartingConversation = true
     @State private var loading = false
     @State private var failure: String?
     @State private var editing = false
     @State private var translating = false
     @State private var translationNotice: String?
     @State private var translationScope = UUID().uuidString
-    @State private var sourceBrowser = false
     @State private var needsTranslationSetup = false
     @State private var languageSetup = false
     private var previousStory: Story? {
         store.archive.stories.filter { $0.characterID == card.id && !$0.isMultiCard }.max { $0.updatedAt < $1.updatedAt }
+    }
+    private var startUnavailableReason: String? {
+        if loading { return "Die vollständige Charakterkarte wird noch geladen." }
+        if !card.hasDefinition { return "Zum Gesprächsstart fehlt die vollständige Charakterdefinition." }
+        return nil
     }
     var body: some View {
         NavigationStack {
@@ -388,7 +407,7 @@ struct CharacterDetail: View {
                 VStack(alignment: .leading, spacing: 24) {
                     CharacterImage(card: card).frame(height: 280).frame(maxWidth: .infinity).clipShape(RoundedRectangle(cornerRadius: 16))
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(card.name).font(.system(.largeTitle, design: .serif))
+                        Text(card.name).font(.system(.largeTitle, design: .serif)).accessibilityIdentifier("character-detail-title")
                         Text(card.displayTagline).font(.title3).foregroundStyle(.secondary)
                         Text("Von \(card.creator)").font(.caption).foregroundStyle(.secondary)
                         if card.cast.isEnsemble {
@@ -401,29 +420,41 @@ struct CharacterDetail: View {
                     if let failure {
                         Text(failure).foregroundStyle(.red)
                         Button("Karte erneut laden") { Task { await fetch() } }
-                        if CatalogueSource.source(for: card.id) == .janny { Button("Originalkarte im Browser herunterladen", systemImage: "arrow.down.doc") { sourceBrowser = true } }
                     }
                     if card.languageCode == "pending", card.hasDefinition {
-                        Text("Deutschübersetzung ausstehend · Gesprächsstart wird nach der Übersetzung freigegeben").font(.caption).foregroundStyle(.secondary)
-                        if translating { ProgressView("Ins Deutsche übersetzen …") }
+                        Text("Kartentexte werden getrennt übersetzt. Du kannst bereits ein Gespräch vorbereiten; vor dem Start wird nur dein gewählter Einstieg übersetzt.").font(.caption).foregroundStyle(.secondary)
+                        if translating { ProgressView(store.translator.progress[translationScope]?.message ?? "Ins Deutsche übersetzen …") }
                         else if needsTranslationSetup { Button("Deutsch einrichten", systemImage: "character.bubble") { languageSetup = true }.accessibilityIdentifier("card-language-setup") }
                         else { Button("Auf Deutsch übersetzen") { store.translator.clearFailures(); Task { await fetch() } } }
                         if let translationNotice { Text(translationNotice).font(.caption).foregroundStyle(.secondary) }
                     }
                     if card.hasDefinition {
-                      Text(card.description.isEmpty ? card.personality : card.description).font(.body).textSelection(.enabled)
-                      if !card.scenario.isEmpty { Text("Die Szene").font(.system(.title2, design: .serif)); Text(card.scenario) }
+                      CardReadableText(card.description.isEmpty ? card.personality : card.description)
+                      if !card.description.isEmpty && !card.personality.isEmpty && card.personality != card.description {
+                        Text("Persönlichkeit und Stimme").font(.system(.title2, design: .serif))
+                        CardReadableText(card.personality)
+                      }
+                      if !card.scenario.isEmpty { Text("Die Szene").font(.system(.title2, design: .serif)); CardReadableText(card.scenario) }
                       if !card.firstMessage.isEmpty {
                         Text("Der erste Satz").font(.system(.title2, design: .serif))
                         Text(card.firstMessage).foregroundStyle(.secondary).padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Palette.surface, in: RoundedRectangle(cornerRadius: 12))
                       }
                     }
                     if let source = card.sourceURL, let url = URL(string: source), url.scheme == "https" { Link("Originalkarte und Urheber", destination: url).font(.subheadline) }
-                    Button("In Bibliothek speichern", systemImage: "bookmark") { store.addCard(card); dismiss() }.disabled(loading || !card.hasDefinition || (CatalogueSource.source(for: card.id) != nil && card.languageCode != "de"))
+                    Button("In Bibliothek speichern", systemImage: "bookmark") { store.addCard(card); dismiss() }.disabled(loading || !card.hasDefinition)
                 }.padding(20)
             }.background(Palette.background)
                 .safeAreaInset(edge: .bottom) {
+                  if allowsStartingConversation {
                   VStack(spacing: 8) {
+                    if let reason = startUnavailableReason {
+                        Text(reason).font(.caption).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("conversation-start-unavailable")
+                    }
+                    if card.hasDefinition && card.languageCode == "pending" {
+                        Text("Zum Start wird nur die gewählte Begrüßung vorbereitet. Du kannst den Einstieg auch leer lassen und selbst beginnen.")
+                            .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("greeting-only-start")
+                    }
                     if let previousStory {
                         Button {
                             dismiss()
@@ -438,15 +469,16 @@ struct CharacterDetail: View {
                         }
                     } label: {
                         Text(previousStory == nil ? "Gespräch beginnen" : "Neues Gespräch beginnen").frame(maxWidth: .infinity).frame(height: 44)
-                    }.buttonStyle(.bordered).disabled(loading || !card.hasDefinition || (CatalogueSource.source(for: card.id) != nil && card.languageCode != "de"))
+                    }.buttonStyle(.bordered).disabled(loading || !card.hasDefinition)
                   }.padding(16).background(.bar)
+                  }
                 }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Schließen") { dismiss() } }
                     ToolbarItem(placement: .primaryAction) {
                         HStack {
                             Button { store.toggleFavorite(card) } label: { Image(systemName: store.archive.favoriteIDs.contains(card.id) ? "star.fill" : "star") }
-                                .accessibilityLabel("Favorit umschalten").disabled(loading || !card.hasDefinition || (CatalogueSource.source(for: card.id) != nil && card.languageCode != "de"))
+                                .accessibilityLabel("Favorit umschalten").disabled(loading || !card.hasDefinition)
                             Button("Bearbeiten", systemImage: "pencil") { editing = true }.disabled(loading)
                         }
                     }
@@ -457,17 +489,6 @@ struct CharacterDetail: View {
                     TranslationSetupView(onReady: { needsTranslationSetup = false; Task { await fetch() } }).environment(store)
                 }
                 .sheet(isPresented: $editing) { CharacterEditor(original: card) { card = $0 }.environment(store) }
-                .sheet(isPresented: $sourceBrowser) {
-                    if let url = JannyWebsite.sourceURL(for: card) {
-                        CatalogueBrowser(url: url, automaticCardID: String(card.id.dropFirst(6))) { file, page in
-                            let expectedID = String(card.id.dropFirst(6))
-                            let sameCard = page.flatMap { JannyWebsite.cardID(in: $0) } == expectedID.lowercased()
-                            store.importFile(file, origin: sameCard ? card : nil) { imported in
-                                card = imported; failure = nil
-                            }
-                        }
-                    }
-                }
         }
     }
     private func fetch(allowDownload: Bool = false) async {

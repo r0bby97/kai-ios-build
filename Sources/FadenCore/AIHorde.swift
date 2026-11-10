@@ -72,6 +72,7 @@ public enum HordeCodec {
         return Array(eligible.prefix(5))
     }
     public static func payload(prompt: BuiltPrompt, workers: [HordeWorker], contextTokens: Int, maxTokens: Int, operationID: UUID) throws -> Data {
+        let prompt = prompt.chatCompatible
         var seen = Set<String>()
         let models = workers.map { $0.model.id }.filter { seen.insert($0).inserted }
         guard !models.isEmpty else { throw HordeFailure("AI Horde: Es ist kein Chat-Modell ausgewählt.", code: "no_model") }
@@ -88,6 +89,10 @@ public enum HordeCodec {
         let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         let code = metadataCode(object["rc"], fallback: "http_\(status)")
         let suffix = " (HTTP \(status), \(String(code.prefix(80))))"
+        if code == "NoEligibleWorker", [400, 403, 503].contains(status) {
+            return .init("AI Horde findet für diese Karte, den Verlauf und die gewünschte Antwort gerade keinen passenden Chat-Rechner. Ein kurzer Verbindungstest kann trotzdem funktionieren. Kai kann die nächste eingerichtete Verbindung verwenden; der Schlüssel wurde damit nicht als ungültig bestätigt." + suffix,
+                         code: code, httpStatus: status)
+        }
         if code == "KudosUpfront" {
             let message = object["message"] as? String ?? ""
             let allowance = message.range(of: #"(?i)up to [0-9]+ tokens"#, options: .regularExpression).flatMap { range in
@@ -147,7 +152,7 @@ public struct AIHordeClient: Sendable {
         do {
             let available = try await exchange(path: "workers?type=text")
             guard available.status == 200 else { throw HordeCodec.failure(status: available.status, data: available.data) }
-            let workers = try HordeCodec.workers(available.data)
+            var workers = try HordeCodec.workers(available.data)
             let requestedOutput = min(16_384, max(16, maxTokens))
             let reservedContext = prompt.estimatedTokens + 192
             guard contextTokens >= reservedContext + 16 else {
@@ -158,21 +163,46 @@ public struct AIHordeClient: Sendable {
             var output = min(requestedOutput, contextTokens - reservedContext, capacities.max() ?? 0)
             guard output >= 16 else { throw HordeFailure("AI Horde: Kein geeigneter Chat-Rechner kann den vollständigen Charakterkontext gerade verarbeiten.", code: "no_eligible_worker") }
             if output < requestedOutput { await progress(.outputLimit(output)) }
-            let requiredContext = max(256, reservedContext + output)
-            let selected = try HordeCodec.selection(workers, model: model, contextTokens: requiredContext, outputTokens: output)
+            var requiredContext = max(256, reservedContext + output)
+            var selected = try HordeCodec.selection(workers, model: model, contextTokens: requiredContext, outputTokens: output)
             var payload = try HordeCodec.payload(prompt: prompt, workers: selected, contextTokens: requiredContext, maxTokens: output, operationID: UUID())
             try Task.checkCancellation()
             var submitted = try await submit(payload: payload, key: credential)
-            if !(200..<300).contains(submitted.status) {
+            var refreshedCapacity = false, adjustedAllowance = false
+            while ![200, 202].contains(submitted.status) {
                 let failure = HordeCodec.failure(status: submitted.status, data: submitted.data)
+                if failure.code == "NoEligibleWorker", [400, 403, 503].contains(submitted.status), !refreshedCapacity, clock.now < deadline {
+                    refreshedCapacity = true
+                    try Task.checkCancellation()
+                    // No job was accepted. Refresh the public capacity snapshot once;
+                    // authentication, content denials and limits are never retried here.
+                    let refreshed = try await exchange(path: "workers?type=text")
+                    guard refreshed.status == 200 else { throw failure }
+                    workers = try HordeCodec.workers(refreshed.data)
+                    let availableOutput = workers.filter { model == HordeCodec.automaticModel ? HordeCodec.isRoleplayModel($0.model.id) : $0.model.id == model }
+                        .map { min($0.model.outputTokens, $0.model.contextTokens - reservedContext) }.max() ?? 0
+                    guard availableOutput >= 16 else { throw failure }
+                    output = min(output, availableOutput)
+                    requiredContext = max(256, reservedContext + output)
+                    selected = try HordeCodec.selection(workers, model: model, contextTokens: requiredContext, outputTokens: output)
+                    payload = try HordeCodec.payload(prompt: prompt, workers: selected, contextTokens: requiredContext, maxTokens: output, operationID: UUID())
+                    submitted = try await submit(payload: payload, key: credential)
+                    continue
+                }
                 // Respect the advertised free allowance; never shorten character/context data.
-                if credential == "0000000000", let allowance = failure.freeOutputAllowance, allowance >= 16, allowance < output {
+                if credential == "0000000000", !adjustedAllowance, let allowance = failure.freeOutputAllowance, allowance >= 16, allowance < output {
+                    adjustedAllowance = true
                     try Task.checkCancellation()
                     output = allowance
                     await progress(.outputLimit(allowance))
+                    // This is the total worker budget, not a cut to any message.
+                    requiredContext = max(256, reservedContext + allowance)
+                    selected = try HordeCodec.selection(workers, model: model, contextTokens: requiredContext, outputTokens: allowance)
                     payload = try HordeCodec.payload(prompt: prompt, workers: selected, contextTokens: requiredContext, maxTokens: allowance, operationID: UUID())
                     submitted = try await submit(payload: payload, key: credential)
+                    continue
                 }
+                break
             }
             report.httpStatus = submitted.status; report.bytes += submitted.data.count
             guard [200, 202].contains(submitted.status) else { throw HordeCodec.failure(status: submitted.status, data: submitted.data) }

@@ -2,6 +2,7 @@ import Foundation
 
 public enum InferencePayload {
     public static func encode(kind: ProviderKind, model: String, prompt: BuiltPrompt, maxTokens: Int, preset: APIProviderPreset? = nil) throws -> Data {
+        let prompt = prompt.chatCompatible
         let messages = prompt.messages.map { ["role": $0.role, "content": $0.content] }
         let body: [String: Any]
         if kind == .anthropic {

@@ -26,13 +26,13 @@ final class APIProviderTests: XCTestCase {
     }
     func testClaudeUsesNativeMessagesAndAvoidsUnsupportedSamplingFields() throws {
         let body = try object(.anthropic)
-        XCTAssertEqual(body["system"] as? String, prompt.system)
+        XCTAssertEqual(body["system"] as? String, prompt.chatCompatible.system)
         XCTAssertEqual(body["max_tokens"] as? Int, 1200)
         XCTAssertEqual(body["stream"] as? Bool, true)
         XCTAssertNil(body["temperature"]); XCTAssertNil(body["top_p"])
         let turns = try XCTUnwrap(body["messages"] as? [[String: String]])
         XCTAssertEqual(turns.first?["role"], "user")
-        XCTAssertTrue(turns.contains { $0["content"] == "Ein gespeicherter Anfang." })
+        XCTAssertTrue((body["system"] as? String)?.contains("Ein gespeicherter Anfang.") == true)
         XCTAssertEqual(turns.last?["content"], "„Guten Abend.“")
         XCTAssertFalse(turns.contains { $0["role"] == "system" })
     }
@@ -43,7 +43,7 @@ final class APIProviderTests: XCTestCase {
         XCTAssertEqual(options["include_venice_system_prompt"], false)
         XCTAssertEqual(options["disable_thinking"], true)
         XCTAssertEqual(options["strip_thinking_response"], true)
-        XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], prompt.system)
+        XCTAssertEqual((body["messages"] as? [[String: String]])?.first?["content"], prompt.chatCompatible.system)
     }
     func testClaudeContinuationDoesNotSendAnAssistantPrefill() throws {
         var continuing = prompt
@@ -52,18 +52,18 @@ final class APIProviderTests: XCTestCase {
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let turns = try XCTUnwrap(body["messages"] as? [[String: String]])
         XCTAssertEqual(turns.last?["role"], "user")
-        XCTAssertTrue(turns.last?["content"]?.contains("keine Beiträge der Nutzerfigur erfinden") == true)
+        XCTAssertTrue(turns.last?["content"]?.contains("Erfinde keine Beiträge oder Entscheidungen der Nutzerfigur") == true)
     }
     func testOpenAIAPIKeepsSeparateOutputBudgetFromChatGPTPlanSharing() throws {
         let api = try object(.openAI), plan = try object(.chatGPT)
         XCTAssertEqual(api["max_output_tokens"] as? Int, 1200)
         XCTAssertNil(plan["max_output_tokens"])
         for body in [api, plan] {
-            XCTAssertEqual(body["instructions"] as? String, prompt.system)
+            XCTAssertEqual(body["instructions"] as? String, prompt.chatCompatible.system)
             XCTAssertEqual(body["store"] as? Bool, false)
             XCTAssertNil(body["temperature"])
         }
-        XCTAssertEqual((try object(.compatible))["messages"] as? [[String: String]], [["role": "system", "content": prompt.system]] + prompt.messages.map { ["role": $0.role, "content": $0.content] })
+        XCTAssertEqual((try object(.compatible))["messages"] as? [[String: String]], [["role": "system", "content": prompt.chatCompatible.system]] + prompt.chatCompatible.messages.map { ["role": $0.role, "content": $0.content] })
     }
     func testClaudeStreamDoesNotExposeReasoningAsCharacterThoughts() {
         func event(_ json: String) -> ClaudeStreamEvent { .decode(.init(name: "message", data: json)) }

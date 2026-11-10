@@ -11,7 +11,7 @@ public enum CardexCatalogueCodec {
     public static func cardURL(slug: String) -> URL? {
         validSlug(slug) ? base.appendingPathComponent("c").appendingPathComponent(slug) : nil
     }
-    public static func searchURL(query: String, position: CataloguePosition, includeAdult: Bool, genre: CharacterGenre) -> URL {
+    public static func searchURL(query: String, position: CataloguePosition, includeAdult: Bool, genre: CharacterGenre, gender: CharacterGenderFilter = .all) -> URL {
         var url = URLComponents(url: base.appendingPathComponent("api/v1/search"), resolvingAgainstBaseURL: false)!
         let normalized = String(OmegaverseSearch.normalized(query).prefix(500))
         // Cardex currently returns HTTP 500 for full-text queries sorted by popularity.
@@ -20,7 +20,8 @@ public enum CardexCatalogueCodec {
                           .init(name: "mode", value: "fts"), .init(name: "limit", value: "24"),
                           .init(name: "nsfw", value: includeAdult ? "include" : "exclude")]
         if !normalized.isEmpty { url.queryItems?.append(.init(name: "q", value: normalized)) }
-        if let tag = genreTag(genre) { url.queryItems?.append(.init(name: "tags", value: tag)) }
+        let tags = [genreTag(genre), gender.catalogueTag].compactMap { $0 }
+        if !tags.isEmpty { url.queryItems?.append(.init(name: "tags", value: tags.joined(separator: ","))) }
         // Cardex rejects combining a cursor with page > 1 (HTTP 400).
         if let cursor = position.cursor { url.queryItems?.append(.init(name: "cursor", value: cursor)) }
         else { url.queryItems?.append(.init(name: "page", value: String(position.page))) }
@@ -154,10 +155,11 @@ public struct CardexCatalogueClient: Sendable {
         return URLSession(configuration: configuration)
     }()
     public init(session: URLSession? = nil) { self.session = session ?? Self.publicSession }
-    public func search(query: String, position: CataloguePosition = .init(), includeAdult: Bool, genre: CharacterGenre = .all) async throws -> CataloguePage {
-        let url = CardexCatalogueCodec.searchURL(query: query, position: position, includeAdult: includeAdult, genre: genre)
+    public func search(query: String, position: CataloguePosition = .init(), includeAdult: Bool, genre: CharacterGenre = .all, gender: CharacterGenderFilter = .all) async throws -> CataloguePage {
+        let url = CardexCatalogueCodec.searchURL(query: query, position: position, includeAdult: includeAdult, genre: genre, gender: gender)
         var page = try CardexCatalogueCodec.decodeSearch(await get(url, maximum: 12 * 1024 * 1024))
         if !includeAdult { page.cards.removeAll(where: \.isAdult) }
+        page.cards.removeAll { !gender.matches($0) }
         return page
     }
     public func detail(_ preview: CharacterCard) async throws -> CharacterCard {

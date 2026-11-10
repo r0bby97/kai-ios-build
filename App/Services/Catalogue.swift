@@ -2,18 +2,17 @@ import Foundation
 import FadenCore
 
 enum Catalogue {
-    static func search(query: String, page: Int, includeAdult: Bool, genre: CharacterGenre = .all, source: CatalogueSource = .chub,
+    static func search(query: String, page: Int, includeAdult: Bool, genre: CharacterGenre = .all, source: CatalogueSource = .chub, gender: CharacterGenderFilter = .all,
                        positions: [CatalogueSource: CataloguePosition]? = nil,
                        updated: @escaping @Sendable (CataloguePage) async -> Void = { _ in }) async throws -> CataloguePage {
         let requested = positions ?? Dictionary(uniqueKeysWithValues: source.sources.map { ($0, CataloguePosition(page: page)) })
         return try await CatalogueSearch.run(source: source, positions: requested, fetch: { current, position in
-            try await searchSingle(query: query, position: position, includeAdult: includeAdult, genre: genre, source: current)
+            try await searchSingle(query: query, position: position, includeAdult: includeAdult, genre: genre, source: current, gender: gender)
         }, updated: updated)
     }
-    private static func searchSingle(query: String, position: CataloguePosition, includeAdult: Bool, genre: CharacterGenre, source: CatalogueSource) async throws -> CataloguePage {
-        if source == .cardex { return try await CardexCatalogueClient(session: CatalogueNetwork.publicDownloadSession).search(query: query, position: position, includeAdult: includeAdult, genre: genre) }
+    private static func searchSingle(query: String, position: CataloguePosition, includeAdult: Bool, genre: CharacterGenre, source: CatalogueSource, gender: CharacterGenderFilter) async throws -> CataloguePage {
+        if source == .cardex { return try await CardexCatalogueClient(session: CatalogueNetwork.publicDownloadSession).search(query: query, position: position, includeAdult: includeAdult, genre: genre, gender: gender) }
         let page = position.page
-        if source == .janny { return try await JannyCatalogue.search(query: query, page: page, includeAdult: includeAdult, genre: genre) }
         var url = URLComponents(string: "https://api.chub.ai/search")!
         // These genres have text matches in Chub but no matching topic tags.
         let usesTextSearch = genre == .guideverse || genre == .bdsm
@@ -22,7 +21,9 @@ enum Catalogue {
             .init(name: "page", value: String(page)), .init(name: "sort", value: "star_count"),
             .init(name: "asc", value: "false"), .init(name: "nsfw", value: String(includeAdult)),
             .init(name: "venus", value: "false"), .init(name: "min_tokens", value: "50")]
-        if !usesTextSearch, let topic = genre.catalogueTopic { url.queryItems?.append(.init(name: "topics", value: topic)) }
+        var topics = usesTextSearch ? [] : [genre.catalogueTopic].compactMap { $0 }
+        if let genderTag = gender.catalogueTag { topics.append(genderTag.capitalized) }
+        if !topics.isEmpty { url.queryItems?.append(.init(name: "topics", value: topics.joined(separator: ","))) }
         var request = URLRequest(url: url.url!); request.setValue("Kai/1.5", forHTTPHeaderField: "User-Agent")
         let (data, response) = try await CatalogueNetwork.session.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
@@ -40,11 +41,13 @@ enum Catalogue {
             result.description = ""
             return result
         }
-        return CataloguePage(cards: cards, hasMore: nodes.count == 24)
+        return CataloguePage(cards: cards.filter { gender.matches($0) }, hasMore: nodes.count == 24)
     }
     static func detail(_ card: CharacterCard) async throws -> CharacterCard {
         if CatalogueSource.source(for: card.id) == .cardex { return try await CardexCatalogueClient(session: CatalogueNetwork.publicDownloadSession).detail(card) }
-        if CatalogueSource.source(for: card.id) == .janny { return try await JannyCatalogue.detail(card) }
+        if CatalogueSource.source(for: card.id) == .janny {
+            throw FadenError.invalidData("JannyAI ist aus der Online-Suche entfernt. Diese alte Vorschau enthält keine vollständige Charakterdefinition. Neue Karten findest du bei Cardex und Chub.")
+        }
         guard card.id.hasPrefix("chub/") else { return card }
         let path = String(card.id.dropFirst(5))
         guard !path.contains(".."), let escaped = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),

@@ -26,11 +26,13 @@ struct RootView: View {
         }
         .overlay {
             if store.startingConversation {
-                ProgressView("Deutsches Gespräch vorbereiten …").padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                ProgressView(store.translator.progress["chat-start"]?.message ?? "Deutschen Gesprächseinstieg vorbereiten …")
+                    .padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
             }
         }
         .task { await store.preloadCatalogue() }
         .background { TranslationHost(translator: store.translator, scope: "main") }
+        .background { TranslationHost(translator: store.translator, scope: "chat-start") }
         .fullScreenCover(item: $store.presentedStory) { route in
             NavigationStack { ChatView(storyID: route.id) }.environment(store).preferredColorScheme(.dark)
         }

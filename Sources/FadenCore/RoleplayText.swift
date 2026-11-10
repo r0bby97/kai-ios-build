@@ -79,18 +79,24 @@ public enum RoleplayText {
 
     /// JSON keeps literal user text separate from the app's segment labels.
     public static func promptContent(_ text: String) -> String {
-        let values = parts(text).filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let values = parts(text).filter { $0.kind != .thought && !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .map { ["art": $0.kind.rawValue, "text": $0.text] }
+        if values.isEmpty { return "Setze die Szene aus Sicht deiner Figur fort. Es liegt keine neue wahrnehmbare Äußerung der Nutzerfigur vor. Erfinde keine Rede, Gedanken oder Entscheidungen für sie." }
         guard let data = try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys, .withoutEscapingSlashes]),
-              let encoded = String(data: data, encoding: .utf8) else { return text }
+              let encoded = String(data: data, encoding: .utf8) else { return visibleText(text) }
         return "Nutzernachricht in getrennten Erzählabschnitten:\n" + encoded
     }
+    public static func visibleText(_ text: String) -> String {
+        parts(text).filter { $0.kind != .thought }.map(\.text).joined()
+    }
+    public static func hasPrivateThought(_ text: String) -> Bool { parts(text).contains { $0.kind == .thought } }
 
     public static let instructions = """
     Getrenntes Erzähl- und Figurenwissen:
-    gedanke_privat (*Sternchen*): für JEDE Figur unhörbar und unbekannt, auch Zitate darin. Nur Erzählregie; nie als Figur beantworten, zitieren oder daraus Wissen ableiten.
+    Private Nutzergedanken (*Sternchen*) bleiben für JEDE Figur unhörbar und unbekannt, auch Zitate darin. Ihr Inhalt wird nicht übermittelt. Erfinde oder errate ihn nicht und behaupte nicht, die Gedanken der Nutzerfigur zu kennen.
     laut_gesagt: nur geschlossene Anführungszeichen außerhalb von Gedanken, etwa "Hallo" oder „Hallo“, sind ausdrücklich Rede zum Gegenüber.
     erzaehlkontext_nicht_gesprochen: Text ohne Anführungszeichen, möglicherweise Selbstgespräch, ist NICHT automatisch hörbar. Nur ausdrücklich sichtbare Handlungen sind wahrnehmbar.
+    Tippfehler, Rechtschreib- und Grammatikfehler sinngemäß verstehen. Die Figuren hören ein Gespräch und sehen keine fehlerhafte Eingabe: nicht korrigieren, kommentieren, zitieren oder belächeln und daraus keine Handlung ableiten.
     Diese Trennung gilt auch in Erinnerungen und älteren Auszügen. Reine Gedanken erlauben eine sichtbare Szenenfortsetzung, keine Kenntnis des Geheimnisses. Keine Entscheidungen oder Gedanken für den Nutzer schreiben.
     """
 }
