@@ -162,6 +162,12 @@ final class AIHordeTests: XCTestCase {
         let selected = try HordeCodec.selection(workers, model: HordeCodec.automaticModel, contextTokens: 4096, outputTokens: 256)
         XCTAssertEqual(Set(selected.map { $0.model.id }).count, 5)
     }
+    func testAdvertisedSpeedLimitsOutputWithinTheWorkerLease() throws {
+        let data = Data("""
+        [{"id":"00000000-0000-0000-0000-000000000001","nsfw":true,"trusted":true,"performance":"0.25 tokens per second","chat":{"model_id":"mini-magnum","features":["prompt_overflow_refused"],"limits":{"max_context_length":8192,"max_length":2048}}}]
+        """.utf8)
+        XCTAssertEqual(try HordeCodec.workers(data).first?.model.outputTokens, 30)
+    }
     private func object(_ data: Data) throws -> [String: Any] { try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]) }
 }
 
