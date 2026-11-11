@@ -35,7 +35,7 @@ public struct CharacterCard: Codable, Identifiable, Hashable, Sendable {
     public var castOverride: CardCast?
     public var sourceCast: CardCast?
     public var cast: CardCast { castOverride ?? sourceCast ?? CardCastDetector.detect(self) }
-    public var displayTagline: String { tagline }
+    public var displayTagline: String { CardMarkup.plain(tagline) }
     public var isBundledExample: Bool { id.hasPrefix("faden.original.") }
     public var hasDefinition: Bool { !description.isEmpty || !personality.isEmpty }
     public init(id: String = UUID().uuidString, name: String, tagline: String = "",

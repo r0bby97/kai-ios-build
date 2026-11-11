@@ -437,7 +437,7 @@ struct CharacterDetail: View {
                       if !card.scenario.isEmpty { Text("Die Szene").font(.system(.title2, design: .serif)); CardReadableText(card.scenario) }
                       if !card.firstMessage.isEmpty {
                         Text("Der erste Satz").font(.system(.title2, design: .serif))
-                        Text(card.firstMessage).foregroundStyle(.secondary).padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Palette.surface, in: RoundedRectangle(cornerRadius: 12))
+                        Text(CardMarkup.plain(card.firstMessage)).foregroundStyle(.secondary).padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Palette.surface, in: RoundedRectangle(cornerRadius: 12))
                       }
                     }
                     if let source = card.sourceURL, let url = URL(string: source), url.scheme == "https" { Link("Originalkarte und Urheber", destination: url).font(.subheadline) }

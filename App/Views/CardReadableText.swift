@@ -4,7 +4,7 @@ import FadenCore
 struct CardReadableText: View {
     let text: String
     private let rows: [CardPropertyRow]?
-    init(_ text: String) { self.text = text; rows = CardStructuredText.parse(text)?.rows }
+    init(_ text: String) { let clean = CardMarkup.clean(text); self.text = clean; rows = CardStructuredText.parse(clean)?.rows }
     var body: some View {
         if let rows {
             VStack(alignment: .leading, spacing: 14) {

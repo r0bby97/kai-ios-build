@@ -192,7 +192,7 @@ struct ChatView: View {
                 if RoleplayText.parts(message.content).contains(where: { $0.kind == .thought }) {
                     Label("Privater Gedanke · bleibt auf dem Gerät", systemImage: "thought.bubble").font(.caption2).foregroundStyle(.secondary)
                 }
-            } else { Text(.init(message.content)).font(.body).lineSpacing(6).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+            } else { Text(.init(CardMarkup.plain(message.content))).font(.body).lineSpacing(6).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
             if let model = message.model, message.role == .assistant, !message.content.isEmpty {
                 Text(model.components(separatedBy: "/").last ?? model).font(.caption2).foregroundStyle(.tertiary)
             }

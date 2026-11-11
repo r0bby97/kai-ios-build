@@ -6,7 +6,7 @@ on:
         description: Prüfungen vor dem einmaligen IPA-Build
         type: choice
         default: all
-        options: [all, translation, discovery]
+        options: [all, translation, discovery, cards]
 permissions:
   contents: write
 concurrency:
@@ -40,6 +40,8 @@ jobs:
           task_test_args=()
           if [ "$KAI_TEST_SCOPE" = "translation" ]; then
             task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testMissingLanguagePackOffersSetupAndDoesNotStartAnEnglishChat -only-testing:FadenUITests/StartupTests/testSettingsOpenTranslationSetupWithoutPreparingCharacterCards -only-testing:FadenUITests/StartupTests/testPublicCatalogueAutomaticallyAddsRealCards)
+          elif [ "$KAI_TEST_SCOPE" = "cards" ]; then
+            task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testStructuredCardPropertiesHaveReadableSections -only-testing:FadenUITests/StartupTests/testSendFallbackAndPersistAStreamedReply -only-testing:FadenUITests/StartupTests/testSecondTurnSwitchesProviderWithTheWrittenHistoryAndNoPrivateThought -only-testing:FadenUITests/StartupTests/testTwoLongStreamedRepliesStayAtTheVisibleEndWithTheKeyboardOpen -only-testing:FadenUITests/StartupTests/testProfileOpensTheCardAndKeepsTheCurrentChatAndDraft -only-testing:FadenUITests/StartupTests/testMissingLanguagePackOffersSetupAndDoesNotStartAnEnglishChat -only-testing:FadenUITests/StartupTests/testPublicCatalogueAutomaticallyAddsRealCards -only-testing:FadenUITests/StartupTests/testLibrarySettingsAndFirstConversation)
           elif [ "$KAI_TEST_SCOPE" = "discovery" ]; then
             task_test_args=(-only-testing:FadenServiceTests -only-testing:FadenUITests/StartupTests/testDiscoveryStartsOnlineAndMigratesTheRemovedSource -only-testing:FadenUITests/StartupTests/testAllSourcesAndCardexAreSelectable -only-testing:FadenUITests/StartupTests/testGenderTabsAndGenreRemainIndependent -only-testing:FadenUITests/StartupTests/testProfileOpensTheCardAndKeepsTheCurrentChatAndDraft -only-testing:FadenUITests/StartupTests/testDraftSurvivesCardNavigationBackgroundAndRelaunch -only-testing:FadenUITests/StartupTests/testLibrarySettingsAndFirstConversation)
           fi

@@ -40,7 +40,7 @@ public enum PromptBuilder {
         let tokenBudget = max(768, contextTokens - min(outputTokens, contextTokens / 3) - 192)
         let byteBudget = tokenBudget * 2
         func replace(_ text: String) -> String {
-            text.replacingOccurrences(of: "{{char}}", with: character.name)
+            CardMarkup.clean(text).replacingOccurrences(of: "{{char}}", with: character.name)
                 .replacingOccurrences(of: "{{user}}", with: story.persona?.name ?? preferences.userName)
         }
         let active = story.activeMessages

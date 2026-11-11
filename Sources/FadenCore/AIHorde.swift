@@ -52,7 +52,12 @@ public enum HordeCodec {
                   (chat["features"] as? [String] ?? []).contains("prompt_overflow_refused"),
                   let limits = chat["limits"] as? [String: Any], let context = limits["max_context_length"] as? Int,
                   let output = limits["max_length"] as? Int, context >= 80, output >= 16 else { return nil }
-            return .init(id: id, model: .init(id: model, contextTokens: context, outputTokens: output))
+            var effectiveOutput = output
+            if let performance = row["performance"] as? String,
+               let speed = Double(performance.split(separator: " ").first ?? ""), speed.isFinite, speed > 0 {
+                effectiveOutput = min(output, Int(min(Double(output), speed * 120)))
+            }
+            return .init(id: id, model: .init(id: model, contextTokens: context, outputTokens: effectiveOutput))
         }
     }
     public static func models(_ workers: [HordeWorker]) -> [HordeModel] {
@@ -69,7 +74,12 @@ public enum HordeCodec {
         guard !eligible.isEmpty else {
             throw HordeFailure("AI Horde: Kein geeigneter freier Chat-Rechner bietet gerade \(contextTokens) Kontext- und \(outputTokens) Ausgabe-Tokens. Die Charakterregeln werden dafür nicht abgeschnitten.", code: "no_eligible_worker")
         }
-        return Array(eligible.prefix(5))
+        var modelIDs = Set<String>()
+        return Array(eligible.filter { worker in
+            if modelIDs.contains(worker.model.id) { return true }
+            guard modelIDs.count < 5 else { return false }
+            modelIDs.insert(worker.model.id); return true
+        }.prefix(32))
     }
     public static func payload(prompt: BuiltPrompt, workers: [HordeWorker], contextTokens: Int, maxTokens: Int, operationID: UUID) throws -> Data {
         let prompt = prompt.chatCompatible
@@ -115,6 +125,7 @@ public enum HordeCodec {
         if name.contains("behemoth") { return 2 }
         if name.contains("stheno") { return 3 }
         if name.contains("cydonia") { return 4 }
+        if ["heretic", "uncensored", "nocturne"].contains(where: name.contains) { return 5 }
         return 10
     }
     static func metadataCode(_ value: Any?, fallback: String) -> String {
@@ -182,7 +193,8 @@ public struct AIHordeClient: Sendable {
                     let availableOutput = workers.filter { model == HordeCodec.automaticModel ? HordeCodec.isRoleplayModel($0.model.id) : $0.model.id == model }
                         .map { min($0.model.outputTokens, $0.model.contextTokens - reservedContext) }.max() ?? 0
                     guard availableOutput >= 16 else { throw failure }
-                    output = min(output, availableOutput)
+                    output = min(output, availableOutput, 256)
+                    await progress(.outputLimit(output))
                     requiredContext = max(256, reservedContext + output)
                     selected = try HordeCodec.selection(workers, model: model, contextTokens: requiredContext, outputTokens: output)
                     payload = try HordeCodec.payload(prompt: prompt, workers: selected, contextTokens: requiredContext, maxTokens: output, operationID: UUID())

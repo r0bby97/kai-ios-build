@@ -7,7 +7,8 @@ import FadenCore
 
 enum GermanLanguage {
     static func code(_ text: String) -> String? {
-        let source = CardStructuredText.parse(text).map { $0.translationFields.sorted(by: { $0.key < $1.key }).map(\.value).joined(separator: "\n") } ?? text
+        let clean = CardMarkup.clean(text)
+        let source = CardStructuredText.parse(clean).map { $0.translationFields.sorted(by: { $0.key < $1.key }).map(\.value).joined(separator: "\n") } ?? clean
         let clean = source.trimmingCharacters(in: .whitespacesAndNewlines)
         guard clean.count > 12 else { return nil }
         let recognizer = NLLanguageRecognizer(); recognizer.processString(String(clean.prefix(6000)))

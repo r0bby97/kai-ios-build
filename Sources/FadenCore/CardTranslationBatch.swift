@@ -19,7 +19,7 @@ public struct CardTranslationBatch: Sendable {
         var requests: [Request] = [], entries: [Entry] = []
         var structures: [String: CardStructuredText] = [:]
         func add(_ text: String, field: String, path: String?) {
-            let parts = TemplateText.parts(text).flatMap { part in
+            let parts = TemplateText.parts(CardMarkup.plain(text)).flatMap { part in
                 part.isPlaceholder ? [part] : Self.segments(part.text).map { TemplatePart(text: $0, isPlaceholder: false) }
             }
             let prefix = String(entries.count)

@@ -145,6 +145,23 @@ final class AIHordeTests: XCTestCase {
         XCTAssertEqual(HordeFixture.posts.count, 2)
         XCTAssertEqual(HordeFixture.deleteCount, 0, "No job was accepted")
     }
+    func testCapacityRetryShortensOutputWithoutChangingAnyMessage() async throws {
+        _ = try await client(.staleCapacity).generate(model: HordeCodec.automaticModel, key: "", prompt: prompt, maxTokens: 1200, contextTokens: 8192)
+        let first = try object(HordeFixture.posts[0]), second = try object(HordeFixture.posts[1])
+        XCTAssertEqual(first["max_tokens"] as? Int, 1200)
+        XCTAssertEqual(second["max_tokens"] as? Int, 256)
+        XCTAssertEqual(first["messages"] as? [[String: String]], second["messages"] as? [[String: String]])
+    }
+    func testRoleplayPoolIncludesNewUncensoredFamilies() {
+        XCTAssertTrue(HordeCodec.isRoleplayModel("koboldcpp/G4-MeroMero-26B-A4B-it-uncensored-heretic"))
+        XCTAssertTrue(HordeCodec.isRoleplayModel("koboldcpp/debug-Vesper-26B-A4B-Nocturne"))
+        XCTAssertFalse(HordeCodec.isRoleplayModel("unrelated-embedding-model"))
+    }
+    func testExpandedPoolStillRespectsTheFiveModelAPILimit() throws {
+        let workers = (0..<12).map { HordeWorker(id: UUID().uuidString, model: HordeModel(id: "uncensored-\($0)", contextTokens: 8192, outputTokens: 1024)) }
+        let selected = try HordeCodec.selection(workers, model: HordeCodec.automaticModel, contextTokens: 4096, outputTokens: 256)
+        XCTAssertEqual(Set(selected.map { $0.model.id }).count, 5)
+    }
     private func object(_ data: Data) throws -> [String: Any] { try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]) }
 }
 

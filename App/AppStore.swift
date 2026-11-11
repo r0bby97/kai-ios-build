@@ -76,7 +76,7 @@ struct StoryRoute: Identifiable { var id: UUID }
             }
         }
         if arguments.contains("-KaiUIStructuredCardTest"), !archive.characters.isEmpty {
-            archive.characters[0].description = #"{"name":"Mara","age":28,"personality":{"traits":["ruhig","wachsam"]}}"#
+            archive.characters[0].description = #"{"name":"Mara","age":28,"personality":{"traits":["<span style=\"color:red\">ruhig</span>","wachsam"]}}"#
             archive.characters[0].personality = ""
         }
         #endif
