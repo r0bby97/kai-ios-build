@@ -26,6 +26,14 @@ final class CardMarkupTests: XCTestCase {
         XCTAssertEqual(object["age"] as? Int, 28)
         XCTAssertEqual(object["traits"] as? [String], ["ruhig", "wachsam"])
     }
+    func testStoredHTMLGreetingAndLoreAreCleanedBeforeInference() {
+        var card = CharacterCard(name: "Mara", description: "<p>A detective.</p>", firstMessage: "<style>css_secret</style><p>Hallo.</p>")
+        card.lore = [LoreEntry(keys: [], content: "<div>Ancient station.</div>", alwaysOn: true)]
+        var story = Story(character: card); story.append(role: .user, content: "„Hallo.“")
+        let prompt = PromptBuilder.build(character: card, story: story, preferences: .init(), contextTokens: 8192)
+        XCTAssertFalse(prompt.system.contains("<div>"))
+        XCTAssertFalse(prompt.messages.contains { $0.content.contains("css_secret") || $0.content.contains("<p>") })
+    }
     func testAppleRequestsContainWordsInsteadOfCSSOrHTML() throws {
         let batch = CardTranslationBatch(fields: ["description":"<style>css:never</style><p>Hello {{user}}</p><p>안녕하세요</p>"])
         XCTAssertFalse(batch.requests.contains { $0.text.contains("<") || $0.text.contains("css:never") })

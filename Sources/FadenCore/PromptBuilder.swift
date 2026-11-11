@@ -45,7 +45,7 @@ public enum PromptBuilder {
         }
         let active = story.activeMessages
         let latest = RoleplayText.visibleText(active.last(where: { $0.role == .user })?.content ?? "")
-        func visible(_ message: Message) -> String { message.role == .user ? RoleplayText.visibleText(message.content) : message.content }
+        func visible(_ message: Message) -> String { message.role == .user ? RoleplayText.visibleText(message.content) : CardMarkup.plain(message.content) }
         let lookupText = active.suffix(4).map(visible).joined(separator: " ").lowercased()
         let lore = character.lore.filter { $0.alwaysOn || $0.keys.contains(where: { !$0.isEmpty && lookupText.contains($0.lowercased()) }) }
         let privateSources = Set(active.filter { $0.role == .user && RoleplayText.hasPrivateThought($0.content) }.map(\.id))
@@ -103,7 +103,7 @@ public enum PromptBuilder {
             let roster = participants.filter { $0.id != character.id }.map { "\($0.name): \(String($0.personality.prefix(240)))" }.joined(separator: "\n")
             instruction += "\n\nGruppengespräch mehrerer Karten. Du antwortest jetzt ausschließlich für die Karte \(character.name)\(cast.isEnsemble ? " und ihre enthaltenen Figuren" : ""). Schreibe keine Beiträge für die anderen Karten oder den Nutzer. Reagiere auch auf vorherige Beiträge der Gruppe. Andere anwesende Figuren:\n" + clipped(roster, bytes: min(600, byteBudget / 6))
         }
-        if !lore.isEmpty { instruction += "\n\nRelevantes Weltwissen:\n" + clipped(lore.map(\.content).joined(separator: "\n"), bytes: byteBudget / 12) }
+        if !lore.isEmpty { instruction += "\n\nRelevantes Weltwissen:\n" + clipped(lore.map { CardMarkup.clean($0.content) }.joined(separator: "\n"), bytes: byteBudget / 12) }
         if !preferences.instructions.isEmpty { instruction += "\n\nSchreibvorlieben:\n" + clipped(preferences.instructions, bytes: 500) }
         if preferences.learnStyle {
             let style = StyleProfile(story: story)
@@ -129,7 +129,7 @@ public enum PromptBuilder {
             let limit = remaining - used
             if limit < 100 { break }
             // Always include the newest message, but never split Unicode scalars.
-            let content = message.role == .user ? RoleplayText.promptContent(message.content) : message.content
+            let content = message.role == .user ? RoleplayText.promptContent(message.content) : CardMarkup.plain(message.content)
             let speaker = message.role == .assistant && story.isGroup ? participants.first(where: { $0.id == (message.speakerID ?? story.characterID) })?.name : nil
             let namedContent = speaker.map { "\($0): \(content)" } ?? content
             if namedContent.utf8.count > limit && !recent.isEmpty && !requiredIDs.contains(message.id) { break }
@@ -151,7 +151,7 @@ public enum PromptBuilder {
         if historyRoom > 160, !ranked.isEmpty {
             let excerpts = ranked.map { item in
                 let message = item.1
-                let content = message.role == .user ? RoleplayText.promptContent(message.content) : message.content
+                let content = message.role == .user ? RoleplayText.promptContent(message.content) : CardMarkup.plain(message.content)
                 return "\(message.role.rawValue): \(clipped(content, bytes: 600))"
             }.joined(separator: "\n")
             let text = clipped(excerpts, bytes: historyRoom)

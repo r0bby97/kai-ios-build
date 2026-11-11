@@ -75,7 +75,7 @@ public enum InsightPromptBuilder {
             if !cast.names.isEmpty { system += " Besetzung: " + cast.names.joined(separator: ", ") }
         }
         func replace(_ text: String) -> String {
-            text.replacingOccurrences(of: "{{char}}", with: character.name).replacingOccurrences(of: "{{user}}", with: story.persona?.name ?? "Nutzerfigur")
+            CardMarkup.clean(text).replacingOccurrences(of: "{{char}}", with: character.name).replacingOccurrences(of: "{{user}}", with: story.persona?.name ?? "Nutzerfigur")
         }
         let room = max(0, budget - system.utf8.count - 240)
         system += "\nPersönlichkeit und Stimme:\n" + PromptBuilder.clipped(replace(character.personality), bytes: room * 2 / 5)
