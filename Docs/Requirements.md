@@ -1,10 +1,10 @@
 # Kai – Abgleich der vereinbarten Anforderungen
 
-Stand: 10. November 2026. [Build 1012](Validation-1012.md) deckt 126 Kernlogik-, 31 iOS-Dienst- und alle 24 Oberflächenfälle aus Vollprüfung und gezieltem Nachlauf ab; die heruntergeladene IPA ist geprüft. „Implementiert“ beschreibt keine erfolgreiche Abnahme mit sämtlichen Konten und dem iPhone des Nutzers. Die App ist noch nicht als vollständig auf dem echten Gerät abgenommen freigegeben.
+Stand: 14. November 2026. [Build 1015](Validation-1015.md) hat 137 Kernlogik-, 31 iOS-Dienst- und acht betroffene Oberflächentests bestanden; die heruntergeladene IPA ist geprüft. Die letzte breitere UI-Abnahme ist in [Build 1012](Validation-1012.md) dokumentiert. „Implementiert“ beschreibt keine erfolgreiche Abnahme sämtlicher Konten und Funktionen auf dem persönlichen iPhone.
 
 | Anforderung | Tatsächlicher Stand |
 | --- | --- |
-| iPhone-App ohne eigenen Mac, IPA für SideStore | SwiftUI-Projekt und öffentlicher macOS-Build vorhanden. IPA 1.7.0 / 1012 nach nativen Prüfungen gebaut und heruntergeladen geprüft. |
+| iPhone-App ohne eigenen Mac, IPA für SideStore | SwiftUI-Projekt und öffentlicher macOS-Build vorhanden. IPA 1.7.1 / 1015 nach nativen Prüfungen gebaut und heruntergeladen geprüft. |
 | Frische Installation | Mit derselben stabilen App-Kennung möglich, indem die bisherige Installation vorher entfernt wird. Dabei werden lokale Chats und Downloads gelöscht. |
 | Name Kai und ausgewähltes Symbol | Implementiert. |
 | Öffentliche Karten schon beim Start | Chub-Vorschauen werden automatisch nach Beliebtheit geladen; 24/60/120 Karten können vorbereitet werden, Standard 60. Keine erfundenen Beispielkarten in der normalen Entdecken-Ansicht. |
@@ -48,3 +48,5 @@ Die Änderungen sind gebaut und geprüft; [Validation-1012.md](Validation-1012.m
 Enthalten: Online als Startansicht, unabhängige Gender-/Genre-Filter mit alphabetischen Genres, lesbare Datenstrukturen, Profil öffnet Karte, Gesprächsstart nach nur gewählter Begrüßung, verbesserte Mehrsprachübersetzung, privater Gedankeninhalt bleibt lokal, portabler Modellwechsel, stärkere Persönlichkeitsverankerung, Tippfehlertoleranz und einheitliches Scroll-Verhalten. Reale Apple-Übersetzungen auf dem iPhone und die konkreten persönlichen OpenRouter-Fehler sind damit noch nicht als vollständig erfolgreich abgenommen bestätigt.
 
 Die geprüften Anbieterregeln sind in [ProviderContentRules.md](ProviderContentRules.md) getrennt nach Erotik und Gewalt dokumentiert.
+
+HTML-Aufbereitung und erweiterte Horde-Rechnerauswahl sind in Build 1015 enthalten. Echte deutsche Antworten mit erweitertem Pool und vollständigem Charakterkontext wurden getestet; Details und Grenzen stehen im [Prüfbericht](Validation-1015.md).
