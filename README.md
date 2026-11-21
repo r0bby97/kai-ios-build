@@ -20,7 +20,7 @@ The macOS GitHub Actions workflow runs core tests, compiles the device app, and 
 
 ## Privacy
 
-Chats, imported cards, memories, and style settings are stored in the app's protected local storage. Provider credentials are kept in the iOS Keychain and excluded from backups. Cloud generation sends the selected conversation context to the selected provider. Character browsing contacts the public catalogue. Local generation downloads model weights once and subsequently runs on the device.
+Chats, imported cards, memories, and style settings are stored in the app's protected local storage. Provider credentials are kept in the iOS Keychain. Manual JSON backups exclude credentials. Automatic backups encrypt the archive on the device and include API keys only if enabled. Cloud generation sends the selected conversation context to the selected provider. Character browsing contacts the public catalogue. Local generation downloads model weights once and subsequently runs on the device.
 
 ## Design
 
@@ -38,6 +38,6 @@ Named API presets cover OpenAI, Claude, Gemini, Grok, DeepSeek, Arli, NanoGPT an
 
 AI Horde uses native asynchronous chat with anonymous access, compatible NSFW workers, preserved system context, bounded waiting and cancellation cleanup. The provider order shows separate erotic-content and fictional-violence guidance with sources. Arli offers a limited free test; NanoGPT and Venice are optional paid API connections. Research and limits are documented in [FreeRoleplayModels.md](Docs/FreeRoleplayModels.md), and validation in [Validation-RoleplayProviders.md](Docs/Validation-RoleplayProviders.md).
 
-[Download Kai 1.7.1 build 1015 for SideStore](https://github.com/r0bby97/kai-ios-build/releases/download/build-1015/Kai-1.7.1-b1015.ipa). This correction passed 137 core tests, 31 iOS service tests and eight affected UI cases. Card HTML is converted to readable text before display, translation and inference, including existing saved greetings. The expanded Horde pool produced real neutral German replies. The downloaded device IPA and exclusion of test fixtures are verified; GitHub reports zero billable macOS minutes. See [validation and remaining limits](Docs/Validation-1015.md).
+[Download Kai 1.8.0 build 1018 for SideStore](https://github.com/r0bby97/kai-ios-build/releases/download/build-1018/Kai-1.8.0-b1018.ipa). This build fixes current Cardex export URLs and adds automatic encrypted backups to a chosen folder in iCloud Drive or another writable Files provider. API keys can be included with consent and recovered with the backup password. The IPA is verified. [138 core tests and 36 selected native tests passed](https://github.com/r0bby97/kai-ios-build/actions/runs/44896842900).
 
 The fixes are documented in [TranslationFix.md](Docs/TranslationFix.md) and [ConversationFixes.md](Docs/ConversationFixes.md). Real Apple translation performance and personal-account model acceptance require an iPhone check.
