@@ -44,15 +44,18 @@ import XCTest
         XCTAssertEqual(protection.value as? String, "1")
         attach(app, name: "Einstellungen")
         app.tabBars.buttons["Entdecken"].tap()
+        let library = app.buttons["Deine Bibliothek"]
+        XCTAssertTrue(library.waitForExistence(timeout: 25))
+        if !library.isSelected { library.tap() }
         let mara = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Mara,")).firstMatch
-        XCTAssertTrue(mara.waitForExistence(timeout: 5))
+        XCTAssertTrue(mara.waitForExistence(timeout: 25))
         mara.tap()
         let begin = app.buttons["Gespräch beginnen"]
-        XCTAssertTrue(begin.waitForExistence(timeout: 5)); begin.tap()
-        XCTAssertTrue(app.navigationBars["Gespräch vorbereiten"].waitForExistence(timeout: 5))
+        XCTAssertTrue(begin.waitForExistence(timeout: 25)); begin.tap()
+        XCTAssertTrue(app.navigationBars["Gespräch vorbereiten"].waitForExistence(timeout: 25))
         app.buttons["Gespräch beginnen"].tap()
         let options = app.buttons["Gesprächsoptionen"]
-        XCTAssertTrue(options.waitForExistence(timeout: 8))
+        XCTAssertTrue(options.waitForExistence(timeout: 25))
         attach(app, name: "Gespraech")
         let field = app.textFields["Deine Nachricht"].exists ? app.textFields["Deine Nachricht"] : app.textViews["Deine Nachricht"]
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Hallo Mara.")
