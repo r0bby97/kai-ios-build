@@ -67,7 +67,11 @@ public enum CardexCatalogueCodec {
             guard let downloads = file["downloads"] as? [String: Any], let text = downloads["json"] as? String,
                   let url = sameSiteURL(text), url.path.range(of: #"^/api/v1/download/[a-f0-9]{64}$"#, options: .regularExpression) != nil,
                   let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
-                  items.count == 1, items.first?.name == "mode", items.first?.value == "json" else { return nil }
+                  items.filter({ $0.name == "mode" }).map(\.value) == ["json"] else { return nil }
+            // Cardex adds a tag-set identifier to its generated JSON export URLs.
+            let tags = items.filter { $0.name == "tags" }
+            guard items.count == 1 + tags.count, tags.count <= 1,
+                  tags.allSatisfy({ $0.value?.range(of: #"^[a-f0-9]{64}$"#, options: .regularExpression) != nil }) else { return nil }
             return url
         }.first
         guard let download else {

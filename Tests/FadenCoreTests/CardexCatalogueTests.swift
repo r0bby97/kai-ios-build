@@ -75,13 +75,29 @@ final class CardexCatalogueTests: XCTestCase {
     }
     func testHiddenFilesAndForeignDownloadsAndWrongCardAreRejected() throws {
         let hash = String(repeating: "a", count: 64)
-        for path in ["https://other.example/api/v1/download/\(hash)?mode=json", "https://cardex.zip@other.example/api/v1/download/\(hash)?mode=json", "/api/v1/download/../private?mode=json", "/api/v1/download/\(hash)?mode=original"] {
-            XCTAssertThrowsError(try CardexCatalogueCodec.decodeExport(CardexFixture.metadata(download: path), preview: preview))
+        let export = "/api/v1/download/\(hash)"
+        let invalidLinks = [
+            "https://other.example\(export)?mode=json",
+            "https://cardex.zip@other.example\(export)?mode=json",
+            "/api/v1/download/../private?mode=json",
+            "\(export)?mode=original",
+            "\(export)?mode=json&mode=original",
+            "\(export)?mode=json&tags=invalid",
+            "\(export)?mode=json&tags=\(hash)&tags=\(hash)",
+            "\(export)?mode=json&unknown=x"
+        ]
+        for path in invalidLinks {
+            XCTAssertThrowsError(try CardexCatalogueCodec.decodeExport(CardexFixture.metadata(download: path), preview: preview), path)
         }
         XCTAssertThrowsError(try CardexCatalogueCodec.decodeExport(CardexFixture.metadata(hidden: true), preview: preview))
         var other = preview; other.id = "cardex/different-1234abcd"
         XCTAssertThrowsError(try CardexCatalogueCodec.decodeExport(CardexFixture.metadata(), preview: other))
         XCTAssertThrowsError(try CardexCatalogueCodec.merging(CharacterCard(name: "Vorschau"), with: preview))
+    }
+    func testLegacyExportWithoutTagSetStillWorks() throws {
+        let path = "/api/v1/download/\(String(repeating: "a", count: 64))?mode=json"
+        let export = try CardexCatalogueCodec.decodeExport(CardexFixture.metadata(download: path), preview: preview)
+        XCTAssertEqual(export.downloadURL.absoluteString, "https://cardex.zip" + path)
     }
     func testUnsafeSourceAndImageURLsAreNotAccepted() throws {
         XCTAssertNil(CatalogueSource.source(for: "cardex/../../private"))
@@ -95,6 +111,7 @@ final class CardexCatalogueTests: XCTestCase {
 }
 
 private final class CardexFixture: URLProtocol {
+    private static let exportQuery = "mode=json&tags=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func stopLoading() {}
@@ -109,7 +126,7 @@ private final class CardexFixture: URLProtocol {
             else if path == "/api/v1/cards/mara-am-bahnhof-1234abcd" { data = try Self.metadata() }
             else if path == "/api/v1/cards/unavailable-1234abcd" { status = 503; data = Data("Service unavailable".utf8) }
             else if path == "/api/v1/download/" + String(repeating: "a", count: 64) {
-                XCTAssertEqual(request.url?.query, "mode=json")
+                XCTAssertEqual(request.url?.query, Self.exportQuery)
                 var card = CharacterCard(name: "Mara", description: "Mara ist eine ruhige, genaue Ermittlerin.", scenario: "Am Bahnhof", firstMessage: "Guten Abend, {{user}}.", tags: ["Mystery"], creator: "")
                 card.lore = [.init(keys: ["Bahnhof"], content: "Der Bahnhof schließt um Mitternacht.")]
                 data = try CardCodec.encode(card)
@@ -130,7 +147,7 @@ private final class CardexFixture: URLProtocol {
             "card": ["slug": "mara-am-bahnhof-1234abcd", "hidden": false, "nsfw": true],
             "top": ["name": ["value": "Mara"], "tagline": ["value": "Ein ruhiger Abend"], "creator": ["value": "Kartenautorin"],
                     "cover": ["image": ["url": "/i/original.webp"]], "tags": [["label": "Guideverse"]]],
-            "files": [["hidden": hidden, "current": true, "downloads": ["json": download ?? "/api/v1/download/\(String(repeating: "a", count: 64))?mode=json"]]]
+            "files": [["hidden": hidden, "current": true, "downloads": ["json": download ?? "/api/v1/download/\(String(repeating: "a", count: 64))?\(exportQuery)"]]]
         ])
     }
 }
