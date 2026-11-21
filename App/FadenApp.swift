@@ -9,7 +9,11 @@ import FadenCore
             RootView().environment(store)
                 .tint(Palette.accent)
                 .preferredColorScheme(store.archive.menuTheme.colorScheme)
-                .onChange(of: scenePhase) { _, phase in if phase != .active { store.save() } }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase != .active { store.save() }
+                    if phase == .background { store.queueCloudBackup(immediately: true) }
+                    else if phase == .active { store.queueCloudBackup() }
+                }
                 .onOpenURL { store.importFile($0) }
         }
     }
@@ -30,7 +34,7 @@ struct RootView: View {
                     .padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
             }
         }
-        .task { await store.preloadCatalogue() }
+        .task { store.queueCloudBackup(); await store.preloadCatalogue() }
         .background { TranslationHost(translator: store.translator, scope: "main") }
         .background { TranslationHost(translator: store.translator, scope: "chat-start") }
         .fullScreenCover(item: $store.presentedStory) { route in

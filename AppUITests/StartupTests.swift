@@ -1,6 +1,21 @@
 import XCTest
 
 @MainActor final class StartupTests: XCTestCase {
+    func testCloudBackupStartsWithAnExplicitFolderChoice() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = offlineArguments()
+        app.launch()
+        app.tabBars.buttons["Einstellungen"].tap()
+        let backup = app.buttons["Automatische Sicherung"]
+        for _ in 0..<12 where !backup.isHittable { app.swipeUp() }
+        XCTAssertTrue(backup.isHittable)
+        backup.tap()
+        XCTAssertTrue(app.buttons["Cloud-Ordner wählen"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["Jetzt sichern"].exists)
+        XCTAssertFalse(app.secureTextFields["Wiederherstellungspasswort"].exists)
+    }
+
     func testLibrarySettingsAndFirstConversation() throws {
         continueAfterFailure = false
         let app = XCUIApplication()

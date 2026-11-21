@@ -33,6 +33,7 @@ struct StoryRoute: Identifiable { var id: UUID }
     let local = LocalEngine()
     let auth = ChatGPTAuth()
     let translator = GermanTranslator()
+    let cloudBackup: CloudBackup
     private var generation: Task<Void, Never>?
     private var draftSave: Task<Void, Never>?
     private var lastStreamSave = Date.distantPast
@@ -40,14 +41,15 @@ struct StoryRoute: Identifiable { var id: UUID }
     private var stateURL: URL { directory.appendingPathComponent("archive.json") }
     private var recoveryURL: URL { directory.appendingPathComponent("archive.previous.json") }
 
-    init() {
+    init(storageDirectory: URL? = nil) {
         var storeName = "Faden"
         #if DEBUG || KAI_TESTING
         let arguments = ProcessInfo.processInfo.arguments
         if let flag = arguments.firstIndex(of: "-FadenUITestStore"), arguments.indices.contains(flag + 1),
            let identifier = UUID(uuidString: arguments[flag + 1]) { storeName = "FadenUITest-\(identifier.uuidString)" }
         #endif
-        directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(storeName, isDirectory: true)
+        directory = storageDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(storeName, isDirectory: true)
+        cloudBackup = CloudBackup(directory: directory)
         archive = Archive()
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -130,13 +132,18 @@ struct StoryRoute: Identifiable { var id: UUID }
     }
     func save() {
         do {
-            let data = try JSONEncoder().encode(archive)
-            // Keep a last-known-valid copy without replacing it with a damaged primary file.
-            if let previous = try? Data(contentsOf: stateURL), (try? Self.decode(previous)) != nil {
-                try previous.write(to: recoveryURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            }
-            try data.write(to: stateURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            try persistArchive(archive)
+            queueCloudBackup()
         } catch { self.error = "Speichern fehlgeschlagen: \(error.localizedDescription)" }
+    }
+    private func persistArchive(_ value: Archive) throws {
+        let data = try JSONEncoder().encode(value)
+        guard data.count <= 60 * 1024 * 1024 else { throw FadenError.invalidData("Der Speicherstand ist größer als 60 MB.") }
+        // Keep the prior validated archive available for local recovery.
+        if let previous = try? Data(contentsOf: stateURL), (try? Self.decode(previous)) != nil {
+            try previous.write(to: recoveryURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        }
+        try data.write(to: stateURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
     func character(_ id: String) -> CharacterCard? { archive.characters.first { $0.id == id } }
     func story(_ id: UUID) -> Story? { archive.stories.first { $0.id == id } }
@@ -380,14 +387,92 @@ struct StoryRoute: Identifiable { var id: UUID }
     }
     func backupURL() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Kai-Backup.json")
+        try JSONEncoder().encode(portableArchive()).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        return url
+    }
+    private func portableArchive() -> Archive {
         var portable = archive
         // A backup contains connection settings but never credentials or device-local image paths.
         for index in portable.characters.indices where portable.characters[index].avatarURL?.hasPrefix("file:") == true {
             portable.characters[index].avatarURL = nil
         }
         for index in portable.characters.indices { portable.characters[index].cachedAvatarURL = nil }
-        try JSONEncoder().encode(portable).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-        return url
+        return portable
+    }
+    func queueCloudBackup(immediately: Bool = false) {
+        cloudBackup.request(immediately: immediately) { [weak self] in
+            guard let self, self.generation == nil else { return nil }
+            var keys: [UUID: String] = [:]
+            if self.cloudBackup.includesAPIKeys {
+                for connection in self.archive.connections where connection.kind != .chatGPT && connection.kind != .local {
+                    let key = Keychain.string("provider.\(connection.id)")
+                    if !key.isEmpty { keys[connection.id] = key }
+                }
+            }
+            return CloudBackupPayload(archive: self.portableArchive(), apiKeys: keys)
+        }
+    }
+    func restoreCloudBackup(
+        _ payload: CloudBackupPayload,
+        readKey: (UUID) -> String = { Keychain.string("provider.\($0)") },
+        saveKey: (UUID, String) throws -> Void = { try Keychain.save($1, key: "provider.\($0)") }
+    ) throws -> String {
+        guard generation == nil else { throw FadenError.invalidData("Bitte zuerst die laufende Antwort stoppen.") }
+        let backup = payload.archive
+        try backup.validate()
+        var merged = archive
+        for card in backup.characters {
+            if let index = merged.characters.firstIndex(where: { $0.id == card.id }) {
+                if !merged.characters[index].hasDefinition && card.hasDefinition { merged.characters[index] = card }
+            } else { merged.characters.append(card) }
+        }
+        let newStories = backup.stories.filter { story in !archive.stories.contains { $0.id == story.id } }
+        merged.stories.append(contentsOf: newStories)
+        if archive.stories.isEmpty {
+            merged.preferences = backup.preferences
+            merged.preferences.language = "Deutsch"
+            merged.menuTheme = backup.menuTheme
+        }
+        merged.favoriteIDs.formUnion(backup.favoriteIDs)
+        for persona in backup.personas where !merged.personas.contains(where: { $0.id == persona.id }) { merged.personas.append(persona) }
+        for scene in backup.scenes where !merged.scenes.contains(where: { $0.id == scene.id }) { merged.scenes.append(scene) }
+
+        // On a fresh install, empty built-in presets should not duplicate restored providers.
+        merged.connections.removeAll { current in
+            guard readKey(current.id).isEmpty, auth.credential(current.id) == nil,
+                  backup.connections.contains(where: { $0.id != current.id && $0.kind == current.kind && $0.baseURL == current.baseURL }) else { return false }
+            return Connection.initial.contains { preset in
+                var candidate = preset
+                candidate.id = current.id
+                return candidate == current
+            }
+        }
+        for var connection in backup.connections where !merged.connections.contains(where: { $0.id == connection.id }) {
+            if connection.kind == .chatGPT || connection.allowsCosts || (connection.requiresAPIKey && payload.apiKeys[connection.id]?.isEmpty != false) {
+                connection.enabled = false
+            }
+            merged.connections.append(connection)
+        }
+        try merged.validate()
+        try persistArchive(merged)
+        archive = merged
+
+        var restoredKeys = 0
+        var skippedKeys = 0
+        for (id, key) in payload.apiKeys {
+            guard !key.isEmpty, key.utf8.count <= 8_192,
+                  let source = backup.connections.first(where: { $0.id == id }), source.kind != .chatGPT, source.kind != .local,
+                  let target = archive.connections.first(where: { $0.id == id }),
+                  source.kind == target.kind, source.baseURL == target.baseURL, source.apiPreset == target.apiPreset,
+                  (try? HTTP.requireHTTPS(target.baseURL)) != nil else { skippedKeys += 1; continue }
+            let current = readKey(id)
+            guard current.isEmpty || current == key else { skippedKeys += 1; continue }
+            do { try saveKey(id, key); restoredKeys += 1 }
+            catch { skippedKeys += 1 }
+        }
+        queueCloudBackup()
+        let result = "\(newStories.count) Gespräche hinzugefügt, \(restoredKeys) API-Schlüssel übernommen."
+        return skippedKeys == 0 ? result : result + " \(skippedKeys) Schlüssel wurden übersprungen."
     }
     func send(_ text: String, storyID: UUID, replyingAs: String? = nil, allParticipants: Bool = false) {
         guard generation == nil, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

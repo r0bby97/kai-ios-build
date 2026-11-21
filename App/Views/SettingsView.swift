@@ -118,6 +118,9 @@ struct SettingsView: View {
                 }
                 Section("Deine Daten") {
                     Button("Fehlerberichte", systemImage: "stethoscope") { diagnosticsSheet = true }
+                    NavigationLink { CloudBackupView() } label: {
+                        Label("Automatische Sicherung", systemImage: "icloud")
+                    }
                     Button("Backup exportieren", systemImage: "square.and.arrow.up") {
                         do { exported = try store.backupURL(); showExport = true } catch { store.error = error.localizedDescription }
                     }
