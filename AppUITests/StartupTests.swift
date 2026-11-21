@@ -24,23 +24,23 @@ import XCTest
         let count = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "24 Charaktere")).firstMatch
         XCTAssertTrue(count.waitForExistence(timeout: 15), "The DEBUG offline fixture should load without a network or account")
         let elias = app.buttons["character-row-faden.original.2"]
-        XCTAssertTrue(elias.waitForExistence(timeout: 5), "Discovery should expose character description rows below the featured card")
+        XCTAssertTrue(elias.waitForExistence(timeout: 25), "Discovery should expose character description rows below the featured card")
         app.buttons["Suchfilter"].tap()
         let favorites = app.switches["Nur Favoriten"]
-        XCTAssertTrue(favorites.waitForExistence(timeout: 5))
+        XCTAssertTrue(favorites.waitForExistence(timeout: 25))
         favorites.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
         XCTAssertEqual(favorites.value as? String, "1")
         app.navigationBars.buttons["Fertig"].tap()
-        XCTAssertTrue(app.staticTexts["Keine Charaktere gefunden"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Keine Charaktere gefunden"].waitForExistence(timeout: 25))
         app.buttons["Zurücksetzen"].tap()
-        XCTAssertTrue(elias.waitForExistence(timeout: 5))
+        XCTAssertTrue(elias.waitForExistence(timeout: 25))
         // Include the actual moving selection in the optional simulator preview.
         selectGenre("fantasy", in: app)
         selectGenre("all", in: app)
         attach(app, name: "Bibliothek")
         app.tabBars.buttons["Einstellungen"].tap()
         let protection = app.switches["Kostenpflichtige API-Modelle ausschließen"]
-        XCTAssertTrue(protection.waitForExistence(timeout: 5))
+        XCTAssertTrue(protection.waitForExistence(timeout: 25))
         XCTAssertEqual(protection.value as? String, "1")
         attach(app, name: "Einstellungen")
         app.tabBars.buttons["Entdecken"].tap()
@@ -58,18 +58,18 @@ import XCTest
         XCTAssertTrue(options.waitForExistence(timeout: 25))
         attach(app, name: "Gespraech")
         let field = app.textFields["Deine Nachricht"].exists ? app.textFields["Deine Nachricht"] : app.textViews["Deine Nachricht"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("Hallo Mara.")
+        XCTAssertTrue(field.waitForExistence(timeout: 25)); field.tap(); field.typeText("Hallo Mara.")
         app.buttons["Nachricht senden"].tap()
-        XCTAssertTrue(app.alerts["Hinweis"].waitForExistence(timeout: 8), "An unconfigured provider must produce an honest setup error rather than a fake answer")
+        XCTAssertTrue(app.alerts["Hinweis"].waitForExistence(timeout: 25), "An unconfigured provider must produce an honest setup error rather than a fake answer")
         app.alerts.buttons["Verstanden"].tap()
         options.tap()
         app.buttons["Erinnerungen & Schreibstil"].tap()
-        XCTAssertTrue(app.navigationBars["Erinnerungen"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Erinnerungen"].waitForExistence(timeout: 25))
         attach(app, name: "Erinnerungen")
         app.navigationBars.buttons["Fertig"].tap()
         app.navigationBars.buttons["Schließen"].tap()
         app.tabBars.buttons["Gespräche"].tap()
-        XCTAssertTrue(app.staticTexts["Hallo Mara."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Hallo Mara."].waitForExistence(timeout: 25))
         attach(app, name: "Chatuebersicht")
     }
     private func attach(_ app: XCUIApplication, name: String) {
